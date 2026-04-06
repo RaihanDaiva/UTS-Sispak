@@ -115,55 +115,48 @@ export const problemDatabase = {
 // Fungsi Inferensi Pure Forward Chaining
 export function calculateDiagnosis(selectedSymptoms) {
   if (!selectedSymptoms || selectedSymptoms.length === 0) {
-    return [];
+    return null;
   }
 
-  let matchedDiagnoses = [];
+  let bestMatch = null;
+  let highestScore = 0;
 
   for (const problem of Object.values(problemDatabase)) {
     const matchedCount = problem.symptoms.filter(symptom =>
       selectedSymptoms.includes(symptom)
     ).length;
 
-    // RULE AKTIF (pure forward chaining)
-    const isRuleSatisfied = matchedCount === problem.symptoms.length;
+    const totalSymptoms = problem.symptoms.length;
+    const score = matchedCount / totalSymptoms;
 
-    if (isRuleSatisfied) {
-      matchedDiagnoses.push({
+    // 🔥 PRIORITAS 1: FULL MATCH (langsung return)
+    if (score === 1) {
+      return {
         code: problem.code,
         type: problem.type,
         description: problem.description,
         solution: problem.solution,
         matchedSymptoms: problem.symptoms,
-        score: 100 // full match
-      });
+        score: 100
+      };
+    }
+
+    // 🔥 PRIORITAS 2: SIMPAN YANG PALING TINGGI
+    if (score > highestScore) {
+      highestScore = score;
+      bestMatch = {
+        code: problem.code,
+        type: problem.type,
+        description: problem.description,
+        solution: problem.solution,
+        matchedSymptoms: problem.symptoms,
+        score: Math.round(score * 100)
+      };
     }
   }
 
-  // 🔥 Jika tidak ada yang FULL MATCH → fallback
-  if (matchedDiagnoses.length === 0) {
-    for (const problem of Object.values(problemDatabase)) {
-      const matchedCount = problem.symptoms.filter(symptom =>
-        selectedSymptoms.includes(symptom)
-      ).length;
-
-      if (matchedCount > 0) {
-        matchedDiagnoses.push({
-          code: problem.code,
-          type: problem.type,
-          description: problem.description,
-          solution: problem.solution,
-          matchedSymptoms: problem.symptoms,
-          score: Math.round((matchedCount / problem.symptoms.length) * 100)
-        });
-      }
-    }
-
-    // urutkan dari yang paling cocok
-    matchedDiagnoses.sort((a, b) => b.score - a.score);
-  }
-
-  return matchedDiagnoses;
+  // 🔥 jika tidak ada full match → ambil best match
+  return bestMatch;
 }
 
 // Daftar semua gejala dari CSV
