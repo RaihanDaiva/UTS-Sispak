@@ -1,125 +1,172 @@
 // Expert System untuk Troubleshooting Website
-// Menggunakan Forward Chaining dengan Certainty Factor
+// Menggunakan Pure Forward Chaining (Rule-Based IF-THEN absolut)
+
+// Expert System untuk Troubleshooting Website
+// Pure Forward Chaining (IF-THEN tanpa perhitungan probabilitas)
 
 export const problemDatabase = {
   P1: {
     code: 'P1',
-    type: 'Masalah Server Down',
-    symptoms: ['G1', 'G3', 'G4', 'G5'],
-    description: 'Server mengalami gangguan atau tidak merespons. Ini bisa disebabkan oleh server yang down, overload, atau maintenance.',
-    solution: 'Cek status server melalui hosting provider, periksa log server, atau hubungi administrator server untuk memastikan service berjalan dengan baik.'
+    type: 'Network',
+    symptoms: ['G1', 'G12'],
+    description: 'Masalah pada koneksi jaringan',
+    solution: 'Cek koneksi internet, DNS, dan firewall'
   },
   P2: {
     code: 'P2',
-    type: 'Masalah DNS / Domain',
-    symptoms: ['G6', 'G13'],
-    description: 'Domain tidak dapat ditemukan atau DNS tidak dapat melakukan resolving. Kemungkinan masalah pada konfigurasi DNS atau domain expired.',
-    solution: 'Periksa konfigurasi DNS di domain registrar, pastikan nameserver sudah benar, dan cek apakah domain masih aktif (belum expired).'
+    type: 'Server',
+    symptoms: ['G2', 'G3'],
+    description: 'Masalah pada server website',
+    solution: 'Periksa konfigurasi server dan log error'
   },
   P3: {
     code: 'P3',
-    type: 'Masalah SSL / Sertifikat Keamanan',
-    symptoms: ['G8', 'G11'],
-    description: 'Sertifikat SSL bermasalah, expired, atau tidak valid. Ini menyebabkan browser menampilkan peringatan keamanan.',
-    solution: 'Perbarui sertifikat SSL, pastikan waktu sistem sudah benar, dan gunakan sertifikat dari Certificate Authority yang terpercaya (seperti Let\'s Encrypt).'
+    type: 'Database',
+    symptoms: ['G3', 'G14'],
+    description: 'Koneksi database bermasalah',
+    solution: 'Cek konfigurasi database dan kredensial'
   },
   P4: {
     code: 'P4',
-    type: 'Masalah Jaringan Client',
-    symptoms: ['G5', 'G9', 'G12'],
-    description: 'Koneksi jaringan dari sisi client bermasalah. Bisa karena masalah ISP, firewall, atau konfigurasi jaringan lokal.',
-    solution: 'Cek koneksi internet, restart router/modem, nonaktifkan firewall atau VPN sementara, dan coba akses dari jaringan lain untuk memastikan masalahnya.'
+    type: 'Server',
+    symptoms: ['G4', 'G6'],
+    description: 'Server tidak tersedia',
+    solution: 'Restart server atau cek status hosting'
   },
   P5: {
     code: 'P5',
-    type: 'Masalah Database',
-    symptoms: ['G14', 'G3'],
-    description: 'Database tidak dapat diakses atau mengalami error. Kemungkinan credential salah, database server down, atau database corrupt.',
-    solution: 'Periksa konfigurasi database di file konfigurasi aplikasi, cek status database server, dan pastikan user database memiliki hak akses yang benar.'
+    type: 'Network',
+    symptoms: ['G5', 'G12'],
+    description: 'Timeout jaringan',
+    solution: 'Cek bandwidth dan koneksi jaringan'
   },
   P6: {
     code: 'P6',
-    type: 'Masalah Hak Akses / Permission',
-    symptoms: ['G15'],
-    description: 'Server menolak akses ke resource tertentu karena masalah permission atau IP blocking.',
-    solution: 'Periksa file .htaccess atau konfigurasi server, pastikan IP tidak terblokir, dan cek permission file/folder di server (biasanya 755 untuk folder, 644 untuk file).'
+    type: 'Network',
+    symptoms: ['G6', 'G1'],
+    description: 'Host tidak ditemukan',
+    solution: 'Periksa DNS dan koneksi internet'
   },
   P7: {
     code: 'P7',
-    type: 'Masalah Loading Resource',
+    type: 'Database',
     symptoms: ['G7', 'G2'],
-    description: 'Resource seperti CSS, JavaScript, atau gambar tidak ter-load dengan sempurna. Bisa disebabkan oleh koneksi lambat atau file rusak.',
-    solution: 'Clear cache browser, periksa console browser untuk error, cek apakah semua file resource ada di server, dan pastikan path file sudah benar.'
+    description: 'Data tidak termuat sempurna',
+    solution: 'Periksa query dan koneksi database'
   },
   P8: {
     code: 'P8',
-    type: 'Masalah Keamanan / Phishing',
-    symptoms: ['G10'],
-    description: 'Website terdeteksi sebagai phishing atau berbahaya oleh browser. Kemungkinan website ter-hack atau masuk blacklist.',
-    solution: 'Scan website dari malware, periksa file-file mencurigakan di server, ganti semua password, dan submit request untuk review ke Google Safe Browsing.'
+    type: 'Komputer Pengguna',
+    symptoms: ['G8', 'G11'],
+    description: 'Masalah pada device user',
+    solution: 'Perbaiki waktu sistem dan cek sertifikat SSL'
   },
   P9: {
     code: 'P9',
-    type: 'Masalah Website Blank/Error',
-    symptoms: ['G2', 'G3'],
-    description: 'Website menampilkan halaman kosong atau error 500. Kemungkinan ada error di kode PHP/aplikasi atau memory limit tercapai.',
-    solution: 'Aktifkan error reporting untuk melihat error detail, periksa log error, cek memory limit di php.ini, dan debug kode aplikasi.'
+    type: 'Network',
+    symptoms: ['G9', 'G12'],
+    description: 'Tidak dapat terhubung ke server',
+    solution: 'Periksa firewall dan jaringan'
+  },
+  P10: {
+    code: 'P10',
+    type: 'Scripting',
+    symptoms: ['G10', 'G11'],
+    description: 'Masalah keamanan atau script',
+    solution: 'Periksa script dan keamanan website'
+  },
+  P11: {
+    code: 'P11',
+    type: 'Server',
+    symptoms: ['G11', 'G15'],
+    description: 'Akses server ditolak',
+    solution: 'Cek permission dan konfigurasi server'
+  },
+  P12: {
+    code: 'P12',
+    type: 'Network',
+    symptoms: ['G12', 'G5'],
+    description: 'Masalah koneksi jaringan',
+    solution: 'Periksa koneksi dan timeout'
+  },
+  P13: {
+    code: 'P13',
+    type: 'Network',
+    symptoms: ['G13', 'G1'],
+    description: 'Website tidak dapat dijangkau',
+    solution: 'Periksa DNS dan koneksi'
+  },
+  P14: {
+    code: 'P14',
+    type: 'Database',
+    symptoms: ['G14', 'G3'],
+    description: 'Error database',
+    solution: 'Cek koneksi database dan query'
+  },
+  P15: {
+    code: 'P15',
+    type: 'Server',
+    symptoms: ['G15', 'G4'],
+    description: 'Server forbidden',
+    solution: 'Periksa permission dan konfigurasi server'
   }
 };
 
-// Hitung tingkat kepercayaan menggunakan Certainty Factor
+// Fungsi Inferensi Pure Forward Chaining
 export function calculateDiagnosis(selectedSymptoms) {
-  if (selectedSymptoms.length === 0) {
-    return null;
+  if (!selectedSymptoms || selectedSymptoms.length === 0) {
+    return [];
   }
 
-  let bestMatch = null;
-  let highestScore = 0;
+  let matchedDiagnoses = [];
 
-  // Iterasi setiap masalah
-  for (const [key, problem] of Object.entries(problemDatabase)) {
-    // Hitung berapa banyak gejala yang cocok
-    const matchedSymptoms = problem.symptoms.filter(s => 
-      selectedSymptoms.includes(s)
-    );
-    
-    if (matchedSymptoms.length === 0) continue;
+  for (const problem of Object.values(problemDatabase)) {
+    const matchedCount = problem.symptoms.filter(symptom =>
+      selectedSymptoms.includes(symptom)
+    ).length;
 
-    // Calculate Certainty Factor
-    // CF = (jumlah gejala cocok / total gejala masalah) * 100
-    let baseCF = (matchedSymptoms.length / problem.symptoms.length) * 100;
-    
-    // Bonus jika semua gejala dari masalah terpenuhi
-    if (matchedSymptoms.length === problem.symptoms.length) {
-      baseCF = Math.min(95, baseCF + 10);
-    }
-    
-    // Penalti jika ada terlalu banyak gejala tambahan yang tidak relevan
-    const extraSymptoms = selectedSymptoms.filter(s => 
-      !problem.symptoms.includes(s)
-    );
-    
-    if (extraSymptoms.length > 0) {
-      const penalty = Math.min(20, extraSymptoms.length * 5);
-      baseCF = Math.max(30, baseCF - penalty);
-    }
+    // RULE AKTIF (pure forward chaining)
+    const isRuleSatisfied = matchedCount === problem.symptoms.length;
 
-    // Update best match jika score lebih tinggi
-    if (baseCF > highestScore) {
-      highestScore = baseCF;
-      bestMatch = {
-        ...problem,
-        confidence: baseCF,
-        matchedSymptoms: matchedSymptoms.length,
-        totalSymptoms: problem.symptoms.length
-      };
+    if (isRuleSatisfied) {
+      matchedDiagnoses.push({
+        code: problem.code,
+        type: problem.type,
+        description: problem.description,
+        solution: problem.solution,
+        matchedSymptoms: problem.symptoms,
+        score: 100 // full match
+      });
     }
   }
 
-  return bestMatch;
+  // 🔥 Jika tidak ada yang FULL MATCH → fallback
+  if (matchedDiagnoses.length === 0) {
+    for (const problem of Object.values(problemDatabase)) {
+      const matchedCount = problem.symptoms.filter(symptom =>
+        selectedSymptoms.includes(symptom)
+      ).length;
+
+      if (matchedCount > 0) {
+        matchedDiagnoses.push({
+          code: problem.code,
+          type: problem.type,
+          description: problem.description,
+          solution: problem.solution,
+          matchedSymptoms: problem.symptoms,
+          score: Math.round((matchedCount / problem.symptoms.length) * 100)
+        });
+      }
+    }
+
+    // urutkan dari yang paling cocok
+    matchedDiagnoses.sort((a, b) => b.score - a.score);
+  }
+
+  return matchedDiagnoses;
 }
 
-// Daftar semua gejala
+// Daftar semua gejala dari CSV
 export const symptoms = [
   { code: "G1", label: "Tidak bisa di ping" },
   { code: "G2", label: "Website blank" },
@@ -130,10 +177,11 @@ export const symptoms = [
   { code: "G7", label: "Data tidak sempurna di load" },
   { code: "G8", label: "Your clock is behind" },
   { code: "G9", label: "Unable to connect" },
-  { code: "G10", label: "Phishing warning" },
-  { code: "G11", label: "Connection is not private" },
-  { code: "G12", label: "Network connection refused" },
-  { code: "G13", label: "Site can't be reached" },
-  { code: "G14", label: "Database connection error" },
-  { code: "G15", label: "Server Forbidden" }
+  { code: "G10", label: "Phishing or Malicious Content Warnings" },
+  { code: "G11", label: "Your connection is not private" },
+  { code: "G12", label: "Network connection Refused" },
+  { code: "G13", label: "The site can’t be reached" },
+  { code: "G14", label: "Establishing a database connection" },
+  { code: "G15", label: "Server Forbidden" },
+  // Lengkapi sesuai data dari Excel kamu
 ];
