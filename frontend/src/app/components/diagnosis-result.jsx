@@ -42,14 +42,6 @@ export function DiagnosisResult({ diagnosis }) {
           </span>
         </div>
 
-        {/* Persentase */}
-        <div>
-          <p className="text-sm text-muted-foreground mb-2">Tingkat Kecocokan</p>
-          <p className="text-lg font-semibold text-green-600">
-            {diagnosis.score}%
-          </p>
-        </div>
-
         {/* Penjelasan */}
         <div className="pt-4 border-t border-border">
           <p className="text-sm text-muted-foreground mb-2">Penjelasan</p>
