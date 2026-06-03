@@ -1,0 +1,94 @@
+# =========================
+# Python / Backend
+# =========================
+
+# Virtual environment
+backend/env/
+backend/venv/
+env/
+venv/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Flask / FastAPI cache
+.instance/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Database local
+*.sqlite
+*.sqlite3
+*.db
+
+# Logs
+*.log
+logs/
+
+# Upload/temp files
+uploads/
+temp/
+tmp/
+
+# =========================
+# Node / Frontend
+# =========================
+
+# Dependencies
+frontend/node_modules/
+node_modules/
+
+# Build output
+frontend/dist/
+frontend/build/
+dist/
+build/
+
+# Vite cache
+frontend/.vite/
+.vite/
+
+# NPM logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Package manager cache
+.pnpm-store/
+
+# =========================
+# Editor / OS
+# =========================
+
+# VS Code
+.vscode/
+!.vscode/extensions.json
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Mac
+.DS_Store
+
+# =========================
+# Git / Misc
+# =========================
+
+# Backup files
+*.bak
+*.tmp
+*.swp
+
+# IDE
+.idea/

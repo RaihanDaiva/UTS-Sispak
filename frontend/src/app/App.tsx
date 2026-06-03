@@ -1,48 +1,199 @@
 import { useState, useRef, useEffect } from "react";
-import { Brain, Send, Bot, User, Loader2, AlertTriangle, Zap, Sun, Moon, Menu } from "lucide-react";
+import {
+  Brain,
+  Send,
+  User,
+  Loader2,
+  AlertTriangle,
+  Zap,
+  Sun,
+  Moon,
+  Menu,
+  SearchCheck,
+  Info,
+  ListChecks,
+  Wrench,
+} from "lucide-react";
 
 type Message = {
   id: string;
-  role: 'system' | 'user';
+  role: "system" | "user";
   content: string | React.ReactNode;
 };
+
+type DetectedSymptom = {
+  id: string;
+  text: string;
+  matchedBy?: string[];
+};
+
+type DiagnosisResult = {
+  kategori: string;
+  userTitle?: string;
+  simpleExplanation?: string;
+  solutionSteps?: string[];
+  gejala: string[];
+  solusi: string;
+  matched: string[];
+  matchedDetail?: DetectedSymptom[];
+  skor: number;
+  pct: number;
+  certaintyLabel?: "Tinggi" | "Sedang" | "Rendah" | string;
+  reason?: string;
+};
+
+type DiagnoseResponse = {
+  showWarning: boolean;
+  results?: DiagnosisResult[] | null;
+  mainResult?: DiagnosisResult;
+  alternativeResults?: DiagnosisResult[];
+  detectedSymptoms?: DetectedSymptom[];
+  preprocessing?: {
+    original: string;
+    normalized: string;
+    tokens: string[];
+    tokens_no_stop: string[];
+    tokens_stemmed: string[];
+    tokens_stemmed_all: string[];
+  };
+  error?: string;
+};
+
+function getCertaintyStyle(label?: string) {
+  if (label === "Tinggi") {
+    return "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300";
+  }
+  if (label === "Sedang") {
+    return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300";
+  }
+  return "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300";
+}
 
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: 'welcome',
-      role: 'system',
-      content: "Halo! Saya adalah AI Diagnosa Website. Ceritakan masalah website Anda secara detail (misal: 'website saya tiba-tiba blank' atau 'server saya tidak bisa di ping sejak pagi')."
-    }
+      id: "welcome",
+      role: "system",
+      content: (
+        <div className="space-y-2">
+          <p className="font-medium">Halo! Saya adalah asisten diagnosa kerusakan website.</p>
+          <p>
+            Ceritakan masalah website Anda dengan bahasa biasa. Supaya hasil lebih akurat, sebutkan pesan error yang muncul.
+          </p>
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            Contoh: <span className="font-medium">“website saya blank putih”</span>, <span className="font-medium">“muncul error database connection”</span>, atau <span className="font-medium">“website connection timeout”</span>.
+          </div>
+        </div>
+      ),
+    },
   ]);
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Initialize Dark Mode based on system preference
   useEffect(() => {
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
       setIsDarkMode(true);
     }
   }, []);
 
-  // Toggle dark class on HTML element
   useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    if (isDarkMode) document.documentElement.classList.add("dark");
+    else document.documentElement.classList.remove("dark");
   }, [isDarkMode]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
   useEffect(() => {
-    scrollToBottom();
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const renderSymptomTags = (symptoms: DetectedSymptom[] = []) => (
+    <div className="flex flex-wrap gap-1.5">
+      {symptoms.map((s) => (
+        <span
+          key={s.id}
+          title={s.matchedBy?.join(" | ")}
+          className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded-md text-xs"
+        >
+          {s.text}
+          <span className="text-gray-400 ml-1">({s.id})</span>
+        </span>
+      ))}
+    </div>
+  );
+
+  const renderResultCard = (result: DiagnosisResult, isMain = false) => {
+    const certainty = result.certaintyLabel || (result.pct >= 70 ? "Tinggi" : result.pct >= 40 ? "Sedang" : "Rendah");
+    const symptomDetails = result.matchedDetail || result.matched.map((id) => ({ id, text: id }));
+
+    return (
+      <div
+        key={result.kategori}
+        className={`rounded-xl p-4 shadow-sm border ${
+          isMain
+            ? "bg-white dark:bg-gray-800 border-indigo-200 dark:border-indigo-900/40"
+            : "bg-gray-50 dark:bg-gray-800/70 border-gray-200 dark:border-gray-700"
+        }`}
+      >
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div>
+            <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+              {isMain ? "Diagnosis Utama" : "Diagnosis Alternatif"}
+            </p>
+            <h4 className={`${isMain ? "text-lg" : "text-base"} font-bold text-gray-900 dark:text-gray-100`}>
+              {result.userTitle || result.kategori}
+            </h4>
+            <p className="text-xs text-gray-400 mt-0.5">Kategori teknis: {result.kategori}</p>
+          </div>
+          <span className={`px-2 py-1 rounded-md text-xs font-bold whitespace-nowrap ${getCertaintyStyle(certainty)}`}>
+            Kemungkinan {certainty} ({result.pct}%)
+          </span>
+        </div>
+
+        {result.simpleExplanation && (
+          <div className="mb-3 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 p-3 text-sm text-gray-700 dark:text-gray-200 leading-relaxed">
+            <div className="flex items-center gap-1 font-bold mb-1 text-indigo-700 dark:text-indigo-300">
+              <Info className="w-4 h-4" /> Apa artinya?
+            </div>
+            {result.simpleExplanation}
+          </div>
+        )}
+
+        <div className="mb-3">
+          <h5 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1 flex items-center gap-1">
+            <SearchCheck className="w-4 h-4" /> Gejala yang terbaca
+          </h5>
+          {renderSymptomTags(symptomDetails)}
+        </div>
+
+        {result.solutionSteps && result.solutionSteps.length > 0 ? (
+          <div className="border-t border-indigo-50 dark:border-gray-700 pt-3">
+            <h5 className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-2 flex items-center gap-1">
+              <Wrench className="w-4 h-4 text-indigo-500 dark:text-indigo-400" /> Langkah yang disarankan:
+            </h5>
+            <ol className="list-decimal list-inside text-sm text-gray-600 dark:text-gray-300 leading-relaxed space-y-1">
+              {result.solutionSteps.map((step, index) => (
+                <li key={index}>{step}</li>
+              ))}
+            </ol>
+          </div>
+        ) : (
+          <div className="border-t border-indigo-50 dark:border-gray-700 pt-3">
+            <h5 className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-1 flex items-center gap-1">
+              <Zap className="w-4 h-4 text-indigo-500 dark:text-indigo-400" /> Solusi Perbaikan:
+            </h5>
+            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{result.solusi}</p>
+          </div>
+        )}
+
+        {result.reason && (
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-3 border-t border-gray-100 dark:border-gray-700 pt-2">
+            Detail sistem: {result.reason}
+          </p>
+        )}
+      </div>
+    );
+  };
 
   const handleSendMessage = async () => {
     if (!inputText.trim() || isLoading) return;
@@ -50,91 +201,114 @@ export default function App() {
     const userText = inputText.trim();
     setInputText("");
 
-    setMessages(prev => [...prev, {
-      id: Date.now().toString(),
-      role: 'user',
-      content: userText
-    }]);
+    setMessages((prev) => [
+      ...prev,
+      { id: Date.now().toString(), role: "user", content: userText },
+    ]);
 
     setIsLoading(true);
 
     try {
-      // Mengirim input teks user ke Backend Python untuk dianalisa menggunakan NLP
       const response = await fetch("http://localhost:8000/api/nlp-diagnose", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: userText }),
       });
-      
-      const data = await response.json();
-      
-      if (data.error) {
-        throw new Error(data.error);
-      }
+
+      const data: DiagnoseResponse = await response.json();
+      if (data.error) throw new Error(data.error);
 
       let systemResponse: React.ReactNode;
 
-      if (data.showWarning) {
+      if (data.showWarning || !data.results || data.results.length === 0) {
         systemResponse = (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 font-medium">
-              <AlertTriangle className="w-5 h-5" />
-              Maaf, informasi kurang jelas.
+              <AlertTriangle className="w-5 h-5" /> Informasi masih kurang jelas.
             </div>
-            <p>Saya tidak dapat mendiagnosa masalah secara pasti dari penjelasan Anda. Mohon berikan ciri-ciri atau pesan error yang lebih spesifik.</p>
+            <p>
+              Saya belum bisa menentukan kerusakan dari penjelasan tersebut. Coba tambahkan pesan error atau ciri yang muncul di website.
+            </p>
+            <div className="bg-orange-50 dark:bg-orange-900/20 rounded-xl p-3 text-sm text-gray-700 dark:text-gray-200">
+              <p className="font-bold mb-1">Contoh informasi yang bisa ditambahkan:</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>Apakah website blank atau halaman putih?</li>
+                <li>Apakah muncul error 500, 403, 404, atau 503?</li>
+                <li>Apakah ada pesan database connection?</li>
+                <li>Apakah hanya terjadi di perangkat Anda?</li>
+              </ul>
+            </div>
           </div>
         );
-      } else if (data.results && data.results.length > 0) {
-        const result = data.results[0];
+      } else {
+        const mainResult = data.mainResult || data.results[0];
+        const alternatives = data.alternativeResults || data.results.slice(1);
+
         systemResponse = (
           <div className="flex flex-col gap-4">
-            <p>Berdasarkan analisa NLP pada penjelasan Anda, berikut adalah kemungkinan kerusakannya:</p>
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-indigo-100 dark:border-indigo-900/30">
-               <div className="flex items-center justify-between mb-3">
-                 <h4 className="font-bold text-indigo-900 dark:text-indigo-300 text-lg">{result.kategori}</h4>
-                 <span className="bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 px-2 py-1 rounded-md text-sm font-bold">{result.pct}% Cocok</span>
-               </div>
-               <div className="mb-3">
-                 <h5 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Gejala (Keywords) Terdeteksi:</h5>
-                 <div className="flex flex-wrap gap-1">
-                   {result.matched.map((g: string) => (
-                     <span key={g} className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded text-xs">{g}</span>
-                   ))}
-                 </div>
-               </div>
-               <div className="border-t border-indigo-50 dark:border-gray-700 pt-3">
-                  <h5 className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-1 flex items-center gap-1">
-                    <Zap className="w-4 h-4 text-indigo-500 dark:text-indigo-400"/> Solusi Perbaikan:
-                  </h5>
-                  <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{result.solusi}</p>
-               </div>
+            <p>
+              Saya membaca keluhan Anda, lalu mencocokkannya dengan gejala kerusakan website yang ada di basis pengetahuan.
+            </p>
+
+            <div className="bg-gray-50 dark:bg-gray-800/70 rounded-xl p-3 border border-gray-200 dark:border-gray-700">
+              <h5 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2 flex items-center gap-1">
+                <ListChecks className="w-4 h-4" /> Ringkasan yang dipahami sistem
+              </h5>
+              <p className="text-sm text-gray-700 dark:text-gray-200 mb-2">
+                Gejala yang ditemukan dari kalimat Anda:
+              </p>
+              {renderSymptomTags(data.detectedSymptoms || [])}
             </div>
+
+            {renderResultCard(mainResult, true)}
+
+            {alternatives.length > 0 && (
+              <div className="flex flex-col gap-3">
+                <h5 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">
+                  Kemungkinan Lain yang Masih Berkaitan
+                </h5>
+                {alternatives.slice(0, 3).map((r) => renderResultCard(r, false))}
+              </div>
+            )}
+
+            {data.preprocessing && (
+              <div className="bg-gray-50 dark:bg-gray-800/70 rounded-xl p-3 border border-gray-200 dark:border-gray-700">
+                <h5 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2 flex items-center gap-1">
+                  <SearchCheck className="w-4 h-4" /> Detail NLP
+                </h5>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  Normalisasi: {data.preprocessing.normalized}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Token hasil stemming: {data.preprocessing.tokens_stemmed.join(", ") || "-"}
+                </p>
+              </div>
+            )}
           </div>
         );
       }
 
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        role: 'system',
-        content: systemResponse
-      }]);
-
+      setMessages((prev) => [
+        ...prev,
+        { id: (Date.now() + 1).toString(), role: "system", content: systemResponse },
+      ]);
     } catch (err: any) {
       console.error("Chat Error:", err);
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        role: 'system',
-        content: `Error: ${err.message || 'Koneksi ke server backend gagal. Pastikan server Flask sudah berjalan.'}`
-      }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: "system",
+          content: `Error: ${err.message || "Koneksi ke server backend gagal. Pastikan server Flask sudah berjalan."}`,
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
@@ -142,18 +316,18 @@ export default function App() {
 
   return (
     <div className="h-screen w-full flex flex-col bg-white dark:bg-gray-900 transition-colors duration-200 overflow-hidden text-gray-800 dark:text-gray-100 font-sans">
-      
-      {/* Minimalist Header */}
       <header className="flex-shrink-0 h-14 border-b border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md flex items-center justify-between px-4 sm:px-6 z-10">
         <div className="flex items-center gap-3">
           <Menu className="w-5 h-5 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 cursor-pointer transition-colors sm:hidden" />
           <div className="flex items-center gap-2">
             <Brain className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            <h1 className="text-base sm:text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">Diagnosa AI</h1>
+            <h1 className="text-base sm:text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">
+              Diagnosa Kerusakan Website
+            </h1>
           </div>
         </div>
-        
-        <button 
+
+        <button
           onClick={() => setIsDarkMode(!isDarkMode)}
           className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
           title="Toggle Theme"
@@ -162,41 +336,28 @@ export default function App() {
         </button>
       </header>
 
-      {/* Main Chat Area */}
       <main className="flex-1 overflow-y-auto w-full scroll-smooth flex flex-col items-center">
         <div className="w-full max-w-3xl flex flex-col gap-6 p-4 sm:p-6 pb-6">
           {messages.map((msg) => (
-            <div 
-              key={msg.id} 
-              className={`flex gap-4 sm:gap-5 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
-            >
-              <div className={`flex justify-center ${msg.role === 'user' ? 'items-center w-10' : ''}`}>
-                {/* Avatar Minimalist */}
-                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${msg.role === 'user' ? 'bg-indigo-100 dark:bg-indigo-900/50' : 'bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700'}`}>
-                  {msg.role === 'user' ? <User className="w-4 h-4 text-indigo-600 dark:text-indigo-400" /> : <Brain className="w-4 h-4 text-gray-600 dark:text-gray-300" />}
+            <div key={msg.id} className={`flex gap-4 sm:gap-5 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
+              <div className={`flex justify-center ${msg.role === "user" ? "items-center w-10" : ""}`}>
+                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${msg.role === "user" ? "bg-indigo-100 dark:bg-indigo-900/50" : "bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700"}`}>
+                  {msg.role === "user" ? <User className="w-4 h-4 text-indigo-600 dark:text-indigo-400" /> : <Brain className="w-4 h-4 text-gray-600 dark:text-gray-300" />}
                 </div>
               </div>
 
-              {/* Message Content */}
-              <div className={`max-w-[85%] sm:max-w-prose pt-1 ${
-                msg.role === 'user' 
-                  ? 'text-gray-800 dark:text-gray-100' 
-                  : 'text-gray-800 dark:text-gray-200'
-              }`}>
-                {msg.role === 'user' ? (
-                   <div className="bg-gray-100 dark:bg-gray-800 rounded-2xl px-5 py-3 inline-block ml-auto max-w-full text-[15px] leading-relaxed shadow-sm text-left">
-                     {msg.content}
-                   </div>
+              <div className={`max-w-[85%] sm:max-w-prose pt-1 ${msg.role === "user" ? "text-gray-800 dark:text-gray-100" : "text-gray-800 dark:text-gray-200"}`}>
+                {msg.role === "user" ? (
+                  <div className="bg-gray-100 dark:bg-gray-800 rounded-2xl px-5 py-3 inline-block ml-auto max-w-full text-[15px] leading-relaxed shadow-sm text-left">
+                    {msg.content}
+                  </div>
                 ) : (
-                   <div className="text-[15px] leading-relaxed pr-4">
-                     {msg.content}
-                   </div>
+                  <div className="text-[15px] leading-relaxed pr-4">{msg.content}</div>
                 )}
               </div>
             </div>
           ))}
 
-          {/* Loading Indicator */}
           {isLoading && (
             <div className="flex gap-4 sm:gap-6 w-full max-w-3xl">
               <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center">
@@ -204,7 +365,7 @@ export default function App() {
               </div>
               <div className="flex-1 pt-2 flex items-center gap-2 text-gray-500 dark:text-gray-400">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-sm font-medium">Menganalisa...</span>
+                <span className="text-sm font-medium">Menganalisa keluhan...</span>
               </div>
             </div>
           )}
@@ -212,7 +373,6 @@ export default function App() {
         </div>
       </main>
 
-      {/* Input Area */}
       <div className="w-full bg-white dark:bg-gray-900 pt-2 pb-6 px-4 z-20 flex justify-center">
         <div className="w-full max-w-3xl relative">
           <div className="relative shadow-[0_0_15px_rgba(0,0,0,0.05)] dark:shadow-[0_0_15px_rgba(0,0,0,0.4)] rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-end">
@@ -220,7 +380,7 @@ export default function App() {
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Jelaskan masalah website Anda..."
+              placeholder="Ceritakan masalah website Anda, contoh: muncul error database connection..."
               className="w-full bg-transparent text-gray-800 dark:text-gray-100 text-base p-4 pr-14 focus:outline-none resize-none max-h-32 min-h-[56px] rounded-2xl leading-relaxed"
               rows={1}
             />
@@ -233,11 +393,10 @@ export default function App() {
             </button>
           </div>
           <p className="text-center text-xs text-gray-400 mt-3">
-            Sistem pakar ini menggunakan NLP untuk memahami konteks kalimat Anda secara otomatis.
+            Sistem membaca keluhan, mendeteksi gejala, lalu memberi diagnosis dan saran perbaikan.
           </p>
         </div>
       </div>
-
     </div>
   );
 }
