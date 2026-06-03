@@ -43,12 +43,7 @@ export default function App() {
     setIsLoading(true);
 
     try {
-      // =========================================================================
-      // TODO UNTUK ANGGOTA 3 (WEB PROGRAMMER):
-      // Ini adalah fungsi untuk mengirim teks bebas dari user ke Backend Python.
-      // Pastikan route `/api/nlp-diagnose` di backend sudah selesai dikerjakan oleh
-      // Anggota 1 (NLP) & 2 (Knowledge Base).
-      // =========================================================================
+      // Mengirim input teks user ke Backend Python untuk dianalisa menggunakan NLP
       const response = await fetch("http://localhost:8000/api/nlp-diagnose", {
         method: "POST",
         headers: {
@@ -206,10 +201,9 @@ export default function App() {
             </button>
           </div>
           <p className="text-center text-xs text-gray-400 mt-3">
-            Sistem dapat melakukan kesalahan. Pastikan teman Anda sudah mengerjakan backend NLP-nya.
+            Sistem pakar ini menggunakan NLP untuk memahami konteks kalimat Anda secara otomatis.
           </p>
         </div>
-
       </div>
     </div>
   );

@@ -1,9 +1,20 @@
+import re
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
+from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
 
 app = Flask(__name__)
 # Allow CORS for React frontend
 CORS(app)
+
+# Inisialisasi Sastrawi (dilakukan di luar route agar tidak diload berulang kali)
+stemmer_factory = StemmerFactory()
+stemmer = stemmer_factory.create_stemmer()
+
+stopword_factory = StopWordRemoverFactory()
+stopwords = set(stopword_factory.get_stop_words())
+
 
 # Knowledge Base
 GEJALA = [
@@ -57,6 +68,25 @@ RULES = [
     },
 ]
 
+# Leksikon / Kamus Kata Kunci (Sinonim) untuk deteksi gejala dari hasil Stemming
+LEKSIKON = {
+    'G1': ['ping', 'rto'],
+    'G2': ['blank', 'putih', 'kosong'],
+    'G3': ['internal', 'server', 'error', '500'],
+    'G4': ['service', 'unavailable', '503'],
+    'G5': ['connection', 'timeout', 'time', 'out', 'lama', 'lambat', 'lelet'],
+    'G6': ['server', 'not', 'found', '404', 'hilang'],
+    'G7': ['data', 'sempurna', 'rusak', 'sebagian', 'load', 'tampil'],
+    'G8': ['clock', 'behind', 'waktu', 'jam', 'tanggal'],
+    'G9': ['unable', 'connect', 'sambung', 'hubung'],
+    'G10': ['phishing', 'malicious', 'warning', 'bahaya', 'virus', 'malware', 'ancam', 'scam'],
+    'G11': ['private', 'privasi', 'aman', 'ssl', 'https'],
+    'G12': ['refuse', 'tolak'],
+    'G13': ['reach', 'jangkau', 'akses', 'buka'],
+    'G14': ['database', 'db', 'koneksi', 'sql'],
+    'G15': ['forbidden', '403', 'larang', 'izin']
+}
+
 @app.route("/api/gejala", methods=["GET"])
 def get_gejala():
     return jsonify({"gejala": GEJALA})
@@ -109,58 +139,81 @@ def run_nlp_diagnose():
         return jsonify({"error": "Pesan tidak boleh kosong."}), 400
 
     # =========================================================================
-    # TODO UNTUK ANGGOTA 1 (NLP ENGINEER) & ANGGOTA 2 (KNOWLEDGE ENGINEER):
-    # =========================================================================
-    # 1. Lakukan Text Preprocessing di sini menggunakan library Sastrawi:
-    #    - Case Folding (lowercase)
-    #    - Tokenization (pisahkan per kata)
-    #    - Stopword Removal (buang kata-kata tidak penting)
-    #    - Stemming (ubah kata berimbuhan ke kata dasar)
-    #
-    # 2. Lakukan Phrase Detection & Pencocokan Gejala:
-    #    - Cek apakah token hasil NLP cocok dengan kamus sinonim yang kalian buat.
-    #    - Jika cocok, simpan ID gejalanya (G1, G2, dst) ke dalam list `detected_symptoms`.
-    #
-    # 3. Jalankan Mesin Inferensi:
-    #    - Kalian bisa panggil fungsi atau logika Forward Chaining lama di sini
-    #      (seperti yang ada di route `/api/diagnose` di atas) menggunakan `detected_symptoms`.
-    #
-    # 4. Kembalikan Response:
-    #    - Format kembalian harus seperti ini agar React Frontend tidak error:
-    #      return jsonify({"showWarning": False, "results": [{"kategori": "...", "solusi": "...", "pct": 80}]})
+    # 1. TEXT PREPROCESSING
     # =========================================================================
     
-    # -------------------------------------------------------------------------
-    # MOCK RESPONSE (PLACEHOLDER)
-    # Ini hanya jawaban palsu agar Anggota 3 (Web Programmer) bisa mengetes UI Chatbot.
-    # Nanti HARUS DIHAPUS dan diganti dengan logika NLP kalian!
-    # -------------------------------------------------------------------------
-    import time
-    time.sleep(1.5) # pura-pura sedang loading NLP
+    # a. Case Folding (lowercase)
+    text_lower = user_text.lower()
     
-    # Deteksi palsu yang asal-asalan untuk tes UI:
-    if "blank" in user_text.lower():
-        mock_kategori = "Server"
-        mock_solusi = "Periksa status layanan web server (Apache/Nginx). Cek log error server."
-        mock_pct = 85
-    elif "ping" in user_text.lower():
-        mock_kategori = "Network"
-        mock_solusi = "Periksa koneksi internet dan konfigurasi jaringan Anda."
-        mock_pct = 90
-    else:
-        # Pura-pura diagnosa tidak cukup kuat (misalnya user ngetik "halo")
+    # b. Tokenization (pisahkan per kata, hilangkan tanda baca)
+    text_clean = re.sub(r'[^a-z0-9\s]', '', text_lower)
+    tokens = text_clean.split()
+    
+    # c. Stopword Removal (buang kata-kata tidak penting menggunakan Sastrawi)
+    tokens_no_stop = [word for word in tokens if word not in stopwords]
+    
+    # d. Stemming (ubah kata berimbuhan ke kata dasar menggunakan Sastrawi)
+    tokens_stemmed = [stemmer.stem(word) for word in tokens_no_stop]
+    
+    # Hasil akhir dari preprocessing bisa dicek untuk debugging (misal: print ke terminal)
+    print(f"Original: {user_text}")
+    print(f"Tokens Stemmed: {tokens_stemmed}")
+
+    # =========================================================================
+    # 2. PHRASE DETECTION & PENCOCOKAN GEJALA
+    # =========================================================================
+    detected_symptoms = set()
+    
+    # Cek setiap kata hasil stem dengan kamus Leksikon
+    for gejala_id, keywords in LEKSIKON.items():
+        # Jika ada minimal 1 kata kunci yang cocok dengan token yang telah di-stem
+        if any(kw in tokens_stemmed for kw in keywords):
+            detected_symptoms.add(gejala_id)
+            
+    # Konversi set ke list
+    detected_symptoms = list(detected_symptoms)
+    print(f"Detected Symptoms: {detected_symptoms}")
+    
+    if not detected_symptoms:
+        # Jika tidak ada gejala yang terdeteksi dari kalimat
         return jsonify({"showWarning": True, "results": None})
+
+    # =========================================================================
+    # 3. MESIN INFERENSI (FORWARD CHAINING)
+    # =========================================================================
+    scored = []
+    for r in RULES:
+        # Cari irisan antara gejala pada rule dengan gejala yang terdeteksi
+        matched = [g for g in r['gejala'] if g in detected_symptoms]
+        if not matched:
+            continue
+            
+        skor = len(matched) / len(r['gejala'])
+        pct = round(skor * 100)
+        scored.append({
+            "kategori": r['kategori'],
+            "gejala": r['gejala'],
+            "solusi": r['solusi'],
+            "matched": matched,
+            "skor": skor,
+            "pct": pct
+        })
         
-    mock_results = [{
-        "kategori": mock_kategori,
-        "gejala": ["G_MOCK"],
-        "solusi": mock_solusi,
-        "matched": ["G_MOCK"],
-        "skor": 0.85,
-        "pct": mock_pct
-    }]
+    # Urutkan berdasarkan persentase (score) tertinggi
+    scored.sort(key=lambda x: x['skor'], reverse=True)
     
-    return jsonify({"showWarning": False, "results": mock_results})
+    # =========================================================================
+    # 4. KEMBALIKAN RESPONSE
+    # =========================================================================
+    max_pct = scored[0]['pct'] if scored else 0
+    
+    # Jika kecocokan paling tinggi kurang dari 30%, asumsikan input tidak cukup spesifik
+    if max_pct < 30:
+        return jsonify({"showWarning": True, "results": None})
+    
+    # Filter hanya hasil yang memiliki kecocokan > 0
+    results = [r for r in scored if len(r['matched']) > 0]
+    return jsonify({"showWarning": False, "results": results})
 
 if __name__ == "__main__":
     # Run the Flask app on port 8000 to match the frontend fetch URL
