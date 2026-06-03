@@ -97,6 +97,71 @@ def run_diagnose():
     results = [r for r in scored if len(r['matched']) > 0]
     return jsonify({"showWarning": False, "results": results})
 
+@app.route("/api/nlp-diagnose", methods=["POST"])
+def run_nlp_diagnose():
+    data = request.get_json()
+    if not data or 'text' not in data:
+        return jsonify({"error": "Data tidak valid. Kirim JSON dengan key 'text'."}), 400
+        
+    user_text = data['text']
+    
+    if not user_text.strip():
+        return jsonify({"error": "Pesan tidak boleh kosong."}), 400
+
+    # =========================================================================
+    # TODO UNTUK ANGGOTA 1 (NLP ENGINEER) & ANGGOTA 2 (KNOWLEDGE ENGINEER):
+    # =========================================================================
+    # 1. Lakukan Text Preprocessing di sini menggunakan library Sastrawi:
+    #    - Case Folding (lowercase)
+    #    - Tokenization (pisahkan per kata)
+    #    - Stopword Removal (buang kata-kata tidak penting)
+    #    - Stemming (ubah kata berimbuhan ke kata dasar)
+    #
+    # 2. Lakukan Phrase Detection & Pencocokan Gejala:
+    #    - Cek apakah token hasil NLP cocok dengan kamus sinonim yang kalian buat.
+    #    - Jika cocok, simpan ID gejalanya (G1, G2, dst) ke dalam list `detected_symptoms`.
+    #
+    # 3. Jalankan Mesin Inferensi:
+    #    - Kalian bisa panggil fungsi atau logika Forward Chaining lama di sini
+    #      (seperti yang ada di route `/api/diagnose` di atas) menggunakan `detected_symptoms`.
+    #
+    # 4. Kembalikan Response:
+    #    - Format kembalian harus seperti ini agar React Frontend tidak error:
+    #      return jsonify({"showWarning": False, "results": [{"kategori": "...", "solusi": "...", "pct": 80}]})
+    # =========================================================================
+    
+    # -------------------------------------------------------------------------
+    # MOCK RESPONSE (PLACEHOLDER)
+    # Ini hanya jawaban palsu agar Anggota 3 (Web Programmer) bisa mengetes UI Chatbot.
+    # Nanti HARUS DIHAPUS dan diganti dengan logika NLP kalian!
+    # -------------------------------------------------------------------------
+    import time
+    time.sleep(1.5) # pura-pura sedang loading NLP
+    
+    # Deteksi palsu yang asal-asalan untuk tes UI:
+    if "blank" in user_text.lower():
+        mock_kategori = "Server"
+        mock_solusi = "Periksa status layanan web server (Apache/Nginx). Cek log error server."
+        mock_pct = 85
+    elif "ping" in user_text.lower():
+        mock_kategori = "Network"
+        mock_solusi = "Periksa koneksi internet dan konfigurasi jaringan Anda."
+        mock_pct = 90
+    else:
+        # Pura-pura diagnosa tidak cukup kuat (misalnya user ngetik "halo")
+        return jsonify({"showWarning": True, "results": None})
+        
+    mock_results = [{
+        "kategori": mock_kategori,
+        "gejala": ["G_MOCK"],
+        "solusi": mock_solusi,
+        "matched": ["G_MOCK"],
+        "skor": 0.85,
+        "pct": mock_pct
+    }]
+    
+    return jsonify({"showWarning": False, "results": mock_results})
+
 if __name__ == "__main__":
     # Run the Flask app on port 8000 to match the frontend fetch URL
     app.run(host="127.0.0.1", port=8000, debug=True)

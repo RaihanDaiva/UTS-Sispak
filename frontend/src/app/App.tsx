@@ -1,479 +1,215 @@
-import { useState, useEffect } from "react";
-import {
-  Brain,
-  Zap,
-  RotateCcw,
-  CheckCircle2,
-  Server,
-  AlertTriangle,
-  Loader2,
-} from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Brain, Send, Bot, User, Loader2, AlertTriangle, Zap } from "lucide-react";
 
-// Data structures fetched from backend
-
-type DiagnosisResult = {
-  kategori: string;
-  gejala: string[];
-  solusi: string;
-  matched: string[];
-  skor: number;
-  pct: number;
+type Message = {
+  id: string;
+  role: 'system' | 'user';
+  content: string | React.ReactNode;
 };
 
 export default function App() {
-  const [gejala, setGejala] = useState<{id: string, text: string}[]>([]);
-  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: 'welcome',
+      role: 'system',
+      content: "Halo! Saya adalah AI Diagnosa Website. Ceritakan masalah website Anda secara detail (misal: 'website saya tiba-tiba blank' atau 'server saya tidak bisa di ping sejak pagi')."
+    }
+  ]);
+  const [inputText, setInputText] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/gejala")
-      .then((res) => res.json())
-      .then((data) => setGejala(data.gejala))
-      .catch((err) => console.error("Failed to fetch gejala", err));
-  }, []);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [diagnosisResults, setDiagnosisResults] = useState<
-    DiagnosisResult[] | null
-  >(null);
-  const [showWarning, setShowWarning] = useState(false);
+    scrollToBottom();
+  }, [messages]);
 
-  const toggleSymptom = (id: string) => {
-    setSelectedSymptoms((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
-    );
-  };
+  const handleSendMessage = async () => {
+    if (!inputText.trim() || isLoading) return;
 
-  const resetAll = () => {
-    setSelectedSymptoms([]);
-    setCurrentStep(1);
-    setDiagnosisResults(null);
-    setShowWarning(false);
-  };
+    const userText = inputText.trim();
+    setInputText("");
 
-  const runDiagnosis = async () => {
-    if (selectedSymptoms.length === 0) {
-      alert("Pilih minimal 1 gejala terlebih dahulu.");
-      return;
-    }
+    // Menambahkan pesan pengguna ke UI
+    setMessages(prev => [...prev, {
+      id: Date.now().toString(),
+      role: 'user',
+      content: userText
+    }]);
 
-    setCurrentStep(2);
-    setIsAnalyzing(true);
+    setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8000/api/diagnose", {
+      // =========================================================================
+      // TODO UNTUK ANGGOTA 3 (WEB PROGRAMMER):
+      // Ini adalah fungsi untuk mengirim teks bebas dari user ke Backend Python.
+      // Pastikan route `/api/nlp-diagnose` di backend sudah selesai dikerjakan oleh
+      // Anggota 1 (NLP) & 2 (Knowledge Base).
+      // =========================================================================
+      const response = await fetch("http://localhost:8000/api/nlp-diagnose", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ selectedSymptoms }),
+        body: JSON.stringify({ text: userText }),
       });
+      
       const data = await response.json();
       
       if (data.error) {
-        alert(data.error);
-        setIsAnalyzing(false);
-        setCurrentStep(1);
-        return;
+        throw new Error(data.error);
       }
 
-      setShowWarning(data.showWarning);
-      setDiagnosisResults(data.results);
-      setIsAnalyzing(false);
-      setCurrentStep(3);
-    } catch (err) {
-      console.error("Failed to diagnose", err);
-      alert("Koneksi ke server backend gagal. Pastikan server Python berjalan di http://localhost:8000");
-      setIsAnalyzing(false);
-      setCurrentStep(1);
+      let systemResponse: React.ReactNode;
+
+      if (data.showWarning) {
+        systemResponse = (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-orange-600 font-medium">
+              <AlertTriangle className="w-5 h-5" />
+              Maaf, informasi kurang jelas.
+            </div>
+            <p>Saya tidak dapat mendiagnosa masalah secara pasti dari penjelasan Anda. Mohon berikan ciri-ciri atau pesan error yang lebih spesifik.</p>
+          </div>
+        );
+      } else if (data.results && data.results.length > 0) {
+        const result = data.results[0]; // Mengambil ranking diagnosa tertinggi
+        systemResponse = (
+          <div className="flex flex-col gap-4">
+            <p>Berdasarkan analisa NLP pada penjelasan Anda, berikut adalah kemungkinan kerusakannya:</p>
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-indigo-100">
+               <div className="flex items-center justify-between mb-3">
+                 <h4 className="font-bold text-indigo-900 text-lg">{result.kategori}</h4>
+                 <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-md text-sm font-bold">{result.pct}% Cocok</span>
+               </div>
+               <div className="mb-3">
+                 <h5 className="text-xs font-bold text-gray-500 uppercase mb-1">Gejala (Keywords) Terdeteksi:</h5>
+                 <div className="flex flex-wrap gap-1">
+                   {result.matched.map((g: string) => (
+                     <span key={g} className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">{g}</span>
+                   ))}
+                 </div>
+               </div>
+               <div className="border-t border-indigo-50 pt-3">
+                  <h5 className="text-sm font-bold text-gray-700 mb-1 flex items-center gap-1">
+                    <Zap className="w-4 h-4 text-indigo-500"/> Solusi Perbaikan:
+                  </h5>
+                  <p className="text-sm text-gray-600 leading-relaxed">{result.solusi}</p>
+               </div>
+            </div>
+          </div>
+        );
+      }
+
+      // Menambahkan balasan sistem ke UI
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: 'system',
+        content: systemResponse
+      }]);
+
+    } catch (err: any) {
+      console.error("Chat Error:", err);
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: 'system',
+        content: `Error: ${err.message || 'Koneksi ke server backend gagal. Pastikan server Flask sudah berjalan.'}`
+      }]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const getColor = (pct: number) => {
-    if (pct >= 60) return { bg: "bg-green-500", text: "text-green-600" };
-    if (pct >= 30) return { bg: "bg-orange-500", text: "text-orange-600" };
-    return { bg: "bg-red-500", text: "text-red-600" };
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Submit pesan dengan tombol Enter (Shift+Enter untuk baris baru)
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-        {/* Header */}
-        <header className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl mb-6 shadow-lg">
-            <Brain className="w-10 h-10 text-white" />
+    <div className="min-h-screen bg-gray-50 flex justify-center p-0 sm:p-6 lg:p-8">
+      <div className="w-full max-w-4xl bg-white sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-gray-100 h-[100dvh] sm:h-[90vh]">
+        
+        {/* Chat Header */}
+        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 sm:p-6 flex items-center gap-4 text-white shadow-md z-10">
+          <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+            <Brain className="w-6 h-6 text-white" />
           </div>
-          <h1 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">
-            Website Diagnostic AI
-          </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-3">
-            Masukkan gejala yang terdeteksi, sistem akan menganalisis
-            menggunakan metode forward chaining
-          </p>
-          <span className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium">
-            <Server className="w-4 h-4" />
-            Forward Chaining Expert System
-          </span>
-        </header>
-
-        {/* Step Indicator */}
-        <div className="mb-12">
-          <div className="flex items-center justify-center gap-4">
-            {[
-              { num: 1, label: "Select Symptoms" },
-              { num: 2, label: "Analyze" },
-              { num: 3, label: "Results" },
-            ].map((step, idx) => (
-              <div key={step.num} className="flex items-center">
-                <div className="flex flex-col items-center">
-                  <div
-                    className={`w-12 h-12 rounded-full flex items-center justify-center font-semibold transition-all duration-300 ${
-                      currentStep >= step.num
-                        ? "bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg scale-110"
-                        : "bg-gray-200 text-gray-500"
-                    }`}
-                  >
-                    {currentStep > step.num ? (
-                      <CheckCircle2 className="w-6 h-6" />
-                    ) : (
-                      step.num
-                    )}
-                  </div>
-                  <span
-                    className={`mt-2 text-sm font-medium ${
-                      currentStep >= step.num
-                        ? "text-indigo-600"
-                        : "text-gray-500"
-                    }`}
-                  >
-                    {step.label}
-                  </span>
-                </div>
-                {idx < 2 && (
-                  <div
-                    className={`w-16 sm:w-24 h-1 rounded-full mx-2 transition-all duration-300 ${
-                      currentStep > step.num
-                        ? "bg-gradient-to-r from-indigo-500 to-purple-600"
-                        : "bg-gray-200"
-                    }`}
-                  />
-                )}
-              </div>
-            ))}
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold">Website Diagnostic AI</h1>
+            <p className="text-indigo-100 text-sm">Powered by NLP & Expert System</p>
           </div>
         </div>
 
-        {/* Symptoms Section */}
-        <div className="bg-white rounded-3xl shadow-xl p-6 sm:p-8 mb-8 border border-gray-100">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-            <h2 className="text-xl font-semibold text-gray-800">
-              Knowledge Base — Pilih Gejala yang Terdeteksi
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-            {gejala.map((g) => (
-              <button
-                key={g.id}
-                onClick={() => toggleSymptom(g.id)}
-                className={`group relative p-4 rounded-xl border-2 transition-all duration-200 text-left ${
-                  selectedSymptoms.includes(g.id)
-                    ? "border-indigo-500 bg-gradient-to-br from-indigo-50 to-purple-50 shadow-md scale-105"
-                    : "border-gray-200 bg-white hover:border-indigo-300 hover:shadow-sm"
-                }`}
+        {/* Chat Messages Area */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gradient-to-b from-gray-50 to-white scroll-smooth">
+          <div className="flex flex-col gap-6">
+            {messages.map((msg) => (
+              <div 
+                key={msg.id} 
+                className={`flex gap-3 sm:gap-4 max-w-[85%] sm:max-w-[75%] ${msg.role === 'user' ? 'ml-auto flex-row-reverse' : ''}`}
               >
-                <div className="flex items-start gap-3">
-                  <div
-                    className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                      selectedSymptoms.includes(g.id)
-                        ? "border-indigo-500 bg-indigo-500"
-                        : "border-gray-300 group-hover:border-indigo-400"
-                    }`}
-                  >
-                    {selectedSymptoms.includes(g.id) && (
-                      <CheckCircle2 className="w-4 h-4 text-white" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-bold text-indigo-600 mb-1">
-                      {g.id}
-                    </div>
-                    <div className="text-sm text-gray-700 leading-snug">
-                      {g.text}
-                    </div>
-                  </div>
+                {/* Avatar */}
+                <div className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center ${msg.role === 'user' ? 'bg-indigo-100' : 'bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md'}`}>
+                  {msg.role === 'user' ? <User className="w-5 h-5 text-indigo-600" /> : <Bot className="w-5 h-5 text-white" />}
                 </div>
-              </button>
-            ))}
-          </div>
 
-          <div className="flex flex-wrap items-center gap-4">
-            <button
-              onClick={runDiagnosis}
-              disabled={isAnalyzing}
-              className="flex-1 sm:flex-initial sm:px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Zap className="w-5 h-5" />
-              Run Diagnosis
-            </button>
-            <button
-              onClick={resetAll}
-              className="px-6 py-4 border-2 border-gray-300 hover:border-gray-400 text-gray-700 font-medium rounded-xl transition-all duration-200 flex items-center gap-2"
-            >
-              <RotateCcw className="w-4 h-4" />
-              Reset
-            </button>
-            <span className="text-sm text-gray-600 font-medium">
-              {selectedSymptoms.length} gejala dipilih
-            </span>
+                {/* Message Bubble */}
+                <div className={`p-4 rounded-2xl text-sm sm:text-base ${
+                  msg.role === 'user' 
+                    ? 'bg-indigo-600 text-white rounded-tr-sm shadow-md' 
+                    : 'bg-white border border-gray-100 text-gray-800 rounded-tl-sm shadow-sm'
+                }`}>
+                  {msg.content}
+                </div>
+              </div>
+            ))}
+
+            {/* Loading Indicator */}
+            {isLoading && (
+               <div className="flex gap-3 sm:gap-4 max-w-[85%] sm:max-w-[75%]">
+                 <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md flex items-center justify-center">
+                   <Bot className="w-5 h-5 text-white" />
+                 </div>
+                 <div className="p-4 rounded-2xl bg-white border border-gray-100 text-gray-800 rounded-tl-sm shadow-sm flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+                    <span className="text-sm text-gray-500">Menganalisa teks menggunakan NLP...</span>
+                 </div>
+               </div>
+            )}
+            <div ref={messagesEndRef} />
           </div>
         </div>
 
-        {/* Loading State */}
-        {isAnalyzing && (
-          <div className="bg-white rounded-3xl shadow-xl p-12 mb-8 text-center border border-gray-100">
-            <div className="flex flex-col items-center gap-4">
-              <div className="relative">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
-                  <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
-                </div>
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                  Analyzing symptoms...
-                </h3>
-                <p className="text-gray-600">
-                  Running forward chaining inference engine
-                </p>
-              </div>
-            </div>
+        {/* Chat Input Area */}
+        <div className="bg-white border-t border-gray-100 p-4 sm:p-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
+          <div className="relative flex items-end gap-2 max-w-4xl mx-auto">
+            <textarea
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ketik masalah website Anda di sini..."
+              className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm sm:text-base rounded-2xl p-4 pr-14 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all resize-none max-h-32 min-h-[60px]"
+              rows={1}
+            />
+            <button
+              onClick={handleSendMessage}
+              disabled={!inputText.trim() || isLoading}
+              className="absolute right-2 bottom-2 p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-sm"
+            >
+              <Send className="w-5 h-5 ml-1" />
+            </button>
           </div>
-        )}
+          <p className="text-center text-xs text-gray-400 mt-3">
+            Sistem dapat melakukan kesalahan. Pastikan teman Anda sudah mengerjakan backend NLP-nya.
+          </p>
+        </div>
 
-        {/* Results Section */}
-        {!isAnalyzing && currentStep === 3 && (
-          <>
-            {showWarning && (
-              <div className="bg-orange-50 border-2 border-orange-300 rounded-2xl p-6 mb-8 flex items-start gap-4">
-                <AlertTriangle className="w-6 h-6 text-orange-600 flex-shrink-0 mt-1" />
-                <div>
-                  <h3 className="font-semibold text-orange-900 mb-1">
-                    Diagnosa tidak cukup kuat
-                  </h3>
-                  <p className="text-orange-800">
-                    Skor tertinggi hanya {diagnosisResults?.[0]?.pct || 0}%.
-                    Silakan pilih lebih banyak gejala untuk hasil yang lebih
-                    akurat.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {diagnosisResults && diagnosisResults.length > 0 && (
-              <>
-                {/* Inference Engine Trace */}
-                <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 mb-8 border border-gray-200">
-                  <h3 className="font-semibold text-gray-800 mb-3 text-sm">
-                    Proses Inference Engine (Forward Chaining):
-                  </h3>
-                  <div className="space-y-2 text-sm text-gray-700 leading-relaxed">
-                    <p>
-                      Fakta awal:{" "}
-                      <strong className="text-gray-900">
-                        {selectedSymptoms.join(", ")}
-                      </strong>
-                    </p>
-                    <p>
-                      Rule aktif (minimal 1 gejala terpenuhi):{" "}
-                      <strong className="text-gray-900">
-                        {diagnosisResults.map((r) => r.kategori).join(", ")}
-                      </strong>
-                    </p>
-                    <p className="text-gray-600 text-xs">
-                      Evaluasi skor = gejala cocok / total gejala per rule →
-                      sistem memilih skor tertinggi sebagai diagnosa utama.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Main Diagnosis */}
-                <div className="mb-8">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-                    <h2 className="text-xl font-semibold text-gray-800">
-                      Diagnosa Utama
-                    </h2>
-                  </div>
-
-                  {diagnosisResults
-                    .filter((r) => r.pct === diagnosisResults[0].pct)
-                    .map((result, idx) => {
-                      const color = getColor(result.pct);
-                      return (
-                        <div
-                          key={idx}
-                          className="bg-white rounded-3xl shadow-2xl border-2 border-indigo-500 p-8 mb-6 relative overflow-hidden"
-                        >
-                          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-600"></div>
-                          <span className="absolute top-6 right-6 px-4 py-1.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-xs font-bold rounded-full shadow-lg">
-                            MAIN DIAGNOSIS
-                          </span>
-
-                          <h3 className="text-3xl font-bold text-gray-900 mb-6">
-                            {result.kategori}
-                          </h3>
-
-                          <div className="flex items-end gap-4 mb-4">
-                            <div className={`text-5xl font-bold ${color.text}`}>
-                              {result.pct}%
-                            </div>
-                            <div className="text-sm text-gray-600 pb-2 leading-tight">
-                              Tingkat kecocokan
-                              <br />
-                              <strong className="text-gray-800">
-                                {result.matched.length} dari{" "}
-                                {result.gejala.length}
-                              </strong>{" "}
-                              gejala terpenuhi
-                            </div>
-                          </div>
-
-                          <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden mb-6">
-                            <div
-                              className={`h-full ${color.bg} transition-all duration-1000 ease-out rounded-full`}
-                              style={{ width: `${result.pct}%` }}
-                            ></div>
-                          </div>
-
-                          <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-5 mb-6">
-                            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
-                              Explanation Facility — Gejala yang Cocok
-                            </h4>
-                            <div className="flex flex-wrap gap-2">
-                              {result.gejala.map((gid) => {
-                                const g = gejala.find((x) => x.id === gid);
-                                const isMatched = result.matched.includes(gid);
-                                return (
-                                  <span
-                                    key={gid}
-                                    title={g?.text}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                                      isMatched
-                                        ? "bg-green-100 text-green-700 border-2 border-green-300"
-                                        : "bg-gray-200 text-gray-500 border-2 border-gray-300"
-                                    }`}
-                                  >
-                                    {gid}
-                                    {isMatched && " ✓"}
-                                  </span>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          <div className="border-t-2 border-gray-200 pt-6">
-                            <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
-                              <Zap className="w-5 h-5 text-indigo-600" />
-                              Solusi / Langkah Perbaikan:
-                            </h4>
-                            <p className="text-gray-700 leading-relaxed">
-                              {result.solusi}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-
-                {/* Alternative Diagnoses */}
-                {diagnosisResults.filter((r) => r.pct < diagnosisResults[0].pct)
-                  .length > 0 && (
-                  <>
-                    <hr className="border-t-2 border-gray-200 my-8" />
-                    <div className="mb-8">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-2 h-2 rounded-full bg-gray-400"></div>
-                        <h2 className="text-xl font-semibold text-gray-800">
-                          Diagnosa Alternatif (berdasarkan ranking)
-                        </h2>
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-4">
-                        {diagnosisResults
-                          .filter((r) => r.pct < diagnosisResults[0].pct)
-                          .map((result, idx) => {
-                            const color = getColor(result.pct);
-                            return (
-                              <div
-                                key={idx}
-                                className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 hover:shadow-xl transition-all duration-200"
-                              >
-                                <div className="flex items-center justify-between mb-4">
-                                  <div className="flex items-center gap-3">
-                                    <h3 className="text-lg font-semibold text-gray-900">
-                                      {result.kategori}
-                                    </h3>
-                                    <span className="px-2.5 py-1 bg-gray-200 text-gray-700 text-xs font-bold rounded-full">
-                                      #{idx + 2}
-                                    </span>
-                                  </div>
-                                  <div
-                                    className={`text-2xl font-bold ${color.text}`}
-                                  >
-                                    {result.pct}%
-                                  </div>
-                                </div>
-
-                                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden mb-4">
-                                  <div
-                                    className={`h-full ${color.bg} transition-all duration-1000 ease-out`}
-                                    style={{ width: `${result.pct}%` }}
-                                  ></div>
-                                </div>
-
-                                <div className="bg-gray-50 rounded-xl p-4 mb-4">
-                                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                                    Gejala yang cocok
-                                  </h4>
-                                  <div className="flex flex-wrap gap-2">
-                                    {result.gejala.map((gid) => {
-                                      const g = gejala.find(
-                                        (x) => x.id === gid,
-                                      );
-                                      const isMatched =
-                                        result.matched.includes(gid);
-                                      return (
-                                        <span
-                                          key={gid}
-                                          title={g?.text}
-                                          className={`px-2.5 py-1 rounded-md text-xs font-semibold ${
-                                            isMatched
-                                              ? "bg-green-100 text-green-700"
-                                              : "bg-gray-200 text-gray-500"
-                                          }`}
-                                        >
-                                          {gid}
-                                          {isMatched && " ✓"}
-                                        </span>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-
-                                <p className="text-sm text-gray-600 leading-relaxed">
-                                  {result.solusi}
-                                </p>
-                              </div>
-                            );
-                          })}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </>
-            )}
-          </>
-        )}
       </div>
     </div>
   );
