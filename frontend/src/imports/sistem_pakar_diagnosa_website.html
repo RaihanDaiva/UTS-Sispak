@@ -1,0 +1,284 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);color:var(--color-text-primary)}
+.wrap{padding:1.5rem 0}
+.header{text-align:center;margin-bottom:2rem}
+.header h1{font-size:22px;font-weight:500;margin-bottom:6px}
+.header p{font-size:14px;color:var(--color-text-secondary)}
+.badge-method{display:inline-block;background:var(--color-background-info);color:var(--color-text-info);font-size:12px;padding:3px 10px;border-radius:var(--border-radius-md);margin-top:8px}
+.section-title{font-size:16px;font-weight:500;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.section-title .dot{width:8px;height:8px;border-radius:50%;background:var(--color-text-info)}
+.kb-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem 1.25rem;margin-bottom:1.5rem}
+.gejala-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-bottom:1.5rem}
+.gejala-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);cursor:pointer;transition:border-color 0.15s,background 0.15s;user-select:none}
+.gejala-item:hover{border-color:var(--color-border-secondary)}
+.gejala-item.checked{border-color:var(--color-border-info);background:var(--color-background-info)}
+.gejala-item input{margin-top:2px;cursor:pointer;accent-color:var(--color-text-info);flex-shrink:0}
+.gejala-label{font-size:13px;line-height:1.4}
+.gejala-code{font-size:11px;font-weight:500;color:var(--color-text-info);margin-bottom:2px}
+.gejala-text{color:var(--color-text-primary);font-size:13px}
+.btn-row{display:flex;gap:10px;margin-bottom:1.5rem;flex-wrap:wrap}
+.btn-diagnosa{background:var(--color-text-info);color:white;border:none;padding:10px 24px;border-radius:var(--border-radius-md);font-size:14px;font-weight:500;cursor:pointer;transition:opacity 0.15s}
+.btn-diagnosa:hover{opacity:0.85}
+.btn-reset{background:transparent;color:var(--color-text-secondary);border:0.5px solid var(--color-border-secondary);padding:10px 20px;border-radius:var(--border-radius-md);font-size:14px;cursor:pointer}
+.btn-reset:hover{background:var(--color-background-secondary)}
+.counter{font-size:13px;color:var(--color-text-secondary);padding:8px 0;align-self:center}
+.result-section{display:none}
+.result-section.show{display:block}
+.warning-box{background:var(--color-background-warning);border:0.5px solid var(--color-border-warning);color:var(--color-text-warning);border-radius:var(--border-radius-md);padding:12px 16px;font-size:14px;margin-bottom:1rem}
+.utama-card{background:var(--color-background-primary);border:2px solid var(--color-border-info);border-radius:var(--border-radius-lg);padding:1.25rem;margin-bottom:1.5rem;position:relative}
+.utama-badge{position:absolute;top:-12px;left:16px;background:var(--color-background-info);color:var(--color-text-info);font-size:11px;font-weight:500;padding:3px 10px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-info)}
+.diagnosa-name{font-size:18px;font-weight:500;margin-bottom:8px;color:var(--color-text-primary)}
+.pct-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.pct-num{font-size:28px;font-weight:500;color:var(--color-text-info)}
+.pct-label{font-size:12px;color:var(--color-text-secondary);line-height:1.4}
+.progress-bar{width:100%;height:8px;background:var(--color-background-secondary);border-radius:4px;overflow:hidden;margin-bottom:12px}
+.progress-fill{height:100%;border-radius:4px;background:var(--color-text-info);transition:width 0.6s ease}
+.progress-fill.high{background:#1D9E75}
+.progress-fill.mid{background:#BA7517}
+.progress-fill.low{background:#A32D2D}
+.explanation-block{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 12px;margin-bottom:10px;font-size:13px}
+.explanation-title{font-size:11px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;font-weight:500}
+.tag-row{display:flex;flex-wrap:wrap;gap:6px}
+.tag{padding:3px 9px;border-radius:var(--border-radius-md);font-size:12px;font-weight:500}
+.tag-match{background:var(--color-background-success);color:var(--color-text-success)}
+.tag-miss{background:var(--color-background-secondary);color:var(--color-text-tertiary);border:0.5px solid var(--color-border-tertiary)}
+.solusi-block{border-top:0.5px solid var(--color-border-tertiary);padding-top:10px;margin-top:4px;font-size:13px;color:var(--color-text-secondary);line-height:1.6}
+.solusi-block strong{color:var(--color-text-primary);font-weight:500}
+.alt-grid{display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:1.5rem}
+.alt-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem 1.25rem}
+.alt-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.alt-name{font-size:14px;font-weight:500}
+.alt-pct{font-size:16px;font-weight:500;color:var(--color-text-secondary)}
+.rank-badge{font-size:11px;color:var(--color-text-tertiary);background:var(--color-background-secondary);padding:2px 8px;border-radius:var(--border-radius-md);margin-left:8px}
+.fc-info{background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:1rem 1.25rem;margin-bottom:1.5rem;font-size:13px;color:var(--color-text-secondary);line-height:1.7}
+.fc-info strong{color:var(--color-text-primary);font-weight:500}
+.divider{border:none;border-top:0.5px solid var(--color-border-tertiary);margin:1.5rem 0}
+.no-result{text-align:center;padding:2rem;color:var(--color-text-secondary);font-size:14px}
+</style>
+
+<div class="wrap">
+  <h2 class="sr-only">Sistem pakar diagnosa kerusakan website berbasis forward chaining</h2>
+
+  <div class="header">
+    <h1>Sistem Pakar Diagnosa Kerusakan Website</h1>
+    <p>Masukkan gejala yang terdeteksi, sistem akan menganalisis menggunakan metode forward chaining</p>
+    <span class="badge-method">Forward Chaining</span>
+  </div>
+
+  <div class="kb-card">
+    <div class="section-title"><span class="dot"></span>Knowledge Base — Pilih Gejala yang Terdeteksi</div>
+    <div class="gejala-grid" id="gejalGrid"></div>
+    <div class="btn-row">
+      <button class="btn-diagnosa" onclick="diagnose()">Jalankan Diagnosa</button>
+      <button class="btn-reset" onclick="resetAll()">Reset</button>
+      <span class="counter" id="counter">0 gejala dipilih</span>
+    </div>
+  </div>
+
+  <div class="result-section" id="resultSection">
+    <div id="warningBox"></div>
+
+    <div id="fcTrace" class="fc-info" style="display:none"></div>
+
+    <div id="utamaSection"></div>
+
+    <div id="altSection"></div>
+  </div>
+</div>
+
+<script>
+const gejala = [
+  {id:'G1',text:'Tidak bisa di ping'},
+  {id:'G2',text:'Website blank'},
+  {id:'G3',text:'Internal Server Error'},
+  {id:'G4',text:'Service Unavailable'},
+  {id:'G5',text:'Connection Timeout'},
+  {id:'G6',text:'Server Not Found'},
+  {id:'G7',text:'Data tidak sempurna di load'},
+  {id:'G8',text:'Your clock is behind'},
+  {id:'G9',text:'Unable to connect'},
+  {id:'G10',text:'Phishing or Malicious Content Warnings'},
+  {id:'G11',text:'Your connection is not private'},
+  {id:'G12',text:'Network connection Refused'},
+  {id:'G13',text:"The site can't be reached"},
+  {id:'G14',text:'Error establishing database connection'},
+  {id:'G15',text:'Server Forbidden'}
+];
+
+const rules = [
+  {
+    kategori:'Network',
+    gejala:['G1','G5','G6','G9','G12','G13'],
+    solusi:'Periksa koneksi internet dan konfigurasi jaringan. Cek DNS server, firewall, routing table, dan pastikan server dapat dijangkau. Lakukan traceroute untuk melacak titik putusnya koneksi. Hubungi ISP jika masalah pada jalur eksternal.'
+  },
+  {
+    kategori:'Server',
+    gejala:['G2','G3','G4','G5','G6','G11','G13','G14','G15'],
+    solusi:'Periksa status layanan web server (Apache/Nginx). Cek log error server, restart service jika perlu. Pastikan konfigurasi virtual host benar, izin file/folder tepat, dan resource server (CPU/RAM) tidak penuh. Periksa SSL certificate jika ada.'
+  },
+  {
+    kategori:'Database',
+    gejala:['G7','G9','G14'],
+    solusi:'Periksa status layanan database (MySQL/PostgreSQL). Cek kredensial koneksi di file konfigurasi, pastikan database aktif dan tidak penuh. Verifikasi nama host, port, user, dan password database. Lakukan repair pada tabel yang corrupt jika diperlukan.'
+  },
+  {
+    kategori:'Komputer Pengguna',
+    gejala:['G8','G10','G11'],
+    solusi:'Sinkronkan waktu sistem komputer pengguna. Bersihkan cache dan cookies browser. Update browser ke versi terbaru. Cek apakah antivirus/ekstensi browser memblokir situs. Coba akses menggunakan browser atau perangkat lain untuk verifikasi.'
+  },
+  {
+    kategori:'Scripting / Security',
+    gejala:['G2','G3','G10','G15'],
+    solusi:'Periksa kode skrip website dari error syntax maupun logic. Scan website dari malware/virus. Periksa izin file (chmod) agar tidak terlalu longgar. Pastikan konfigurasi .htaccess benar. Update CMS/plugin/framework ke versi terbaru dan ganti password admin.'
+  },
+  {
+    kategori:'Frontend / Routing',
+    gejala:['G2','G7','G13'],
+    solusi:'Periksa konfigurasi routing pada framework (React Router, Vue Router, dll). Cek file .htaccess atau konfigurasi Nginx untuk URL rewriting. Pastikan aset frontend (JS/CSS) ter-load dengan benar. Periksa error console browser dan perbaiki broken link atau path yang salah.'
+  }
+];
+
+const grid = document.getElementById('gejalGrid');
+gejala.forEach(g => {
+  const item = document.createElement('div');
+  item.className = 'gejala-item';
+  item.id = 'item_'+g.id;
+  item.innerHTML = `<input type="checkbox" id="cb_${g.id}" value="${g.id}" onchange="updateCounter()"><div class="gejala-label"><div class="gejala-code">${g.id}</div><div class="gejala-text">${g.text}</div></div>`;
+  item.addEventListener('click', function(e){
+    if(e.target.tagName!=='INPUT'){
+      const cb = document.getElementById('cb_'+g.id);
+      cb.checked = !cb.checked;
+      updateCounter();
+    }
+  });
+  grid.appendChild(item);
+});
+
+function updateCounter(){
+  const checked = getChecked();
+  checked.forEach(id=>{
+    document.getElementById('item_'+id).classList.add('checked');
+  });
+  gejala.forEach(g=>{
+    if(!checked.includes(g.id)) document.getElementById('item_'+g.id).classList.remove('checked');
+  });
+  document.getElementById('counter').textContent = checked.length + ' gejala dipilih';
+}
+
+function getChecked(){
+  return gejala.filter(g=>document.getElementById('cb_'+g.id).checked).map(g=>g.id);
+}
+
+function resetAll(){
+  gejala.forEach(g=>{
+    document.getElementById('cb_'+g.id).checked=false;
+    document.getElementById('item_'+g.id).classList.remove('checked');
+  });
+  document.getElementById('counter').textContent='0 gejala dipilih';
+  document.getElementById('resultSection').classList.remove('show');
+}
+
+function getColor(pct){
+  if(pct>=60) return 'high';
+  if(pct>=30) return 'mid';
+  return 'low';
+}
+
+function diagnose(){
+  const facts = getChecked();
+  if(facts.length===0){
+    alert('Pilih minimal 1 gejala terlebih dahulu.');
+    return;
+  }
+
+  const scored = rules.map(r=>{
+    const matched = r.gejala.filter(g=>facts.includes(g));
+    const skor = matched.length / r.gejala.length;
+    return {...r, matched, skor, pct: Math.round(skor*100)};
+  }).sort((a,b)=>b.skor-a.skor);
+
+  const rs = document.getElementById('resultSection');
+  rs.classList.add('show');
+
+  const wb = document.getElementById('warningBox');
+  const maxPct = scored[0].pct;
+
+  if(maxPct < 30){
+    wb.innerHTML = `<div class="warning-box">Diagnosa tidak cukup kuat. Skor tertinggi hanya ${maxPct}%. Silakan pilih lebih banyak gejala untuk hasil yang lebih akurat.</div>`;
+    document.getElementById('fcTrace').style.display='none';
+    document.getElementById('utamaSection').innerHTML='';
+    document.getElementById('altSection').innerHTML='';
+    return;
+  }
+  wb.innerHTML='';
+
+  const activeRules = scored.filter(r=>r.matched.length>0);
+  let traceHTML = `<strong>Proses Inference Engine (Forward Chaining):</strong><br>`;
+  traceHTML += `Fakta awal: <strong>${facts.join(', ')}</strong><br>`;
+  traceHTML += `Rule aktif (minimal 1 gejala terpenuhi): <strong>${activeRules.map(r=>r.kategori).join(', ')}</strong><br>`;
+  traceHTML += `Evaluasi skor = gejala cocok / total gejala per rule → sistem memilih skor tertinggi sebagai diagnosa utama.`;
+  const fcEl = document.getElementById('fcTrace');
+  fcEl.innerHTML = traceHTML;
+  fcEl.style.display='block';
+
+  const utama = scored.filter(r=>r.pct===maxPct && r.matched.length>0);
+  const alt = scored.filter(r=>r.pct<maxPct && r.matched.length>0);
+
+  let utamaHTML = `<div class="section-title"><span class="dot"></span>Diagnosa Utama</div>`;
+  utama.forEach(r=>{
+    const gMap = buildGMap(r);
+    utamaHTML += `
+    <div class="utama-card">
+      <span class="utama-badge">Diagnosa Utama</span>
+      <div class="diagnosa-name">${r.kategori}</div>
+      <div class="pct-row">
+        <span class="pct-num">${r.pct}%</span>
+        <span class="pct-label">Tingkat kecocokan<br>${r.matched.length} dari ${r.gejala.length} gejala terpenuhi</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill ${getColor(r.pct)}" style="width:${r.pct}%"></div></div>
+      <div class="explanation-block">
+        <div class="explanation-title">Explanation Facility — Gejala yang Cocok</div>
+        <div class="tag-row">${gMap}</div>
+      </div>
+      <div class="solusi-block"><strong>Solusi / Langkah Perbaikan:</strong><br>${r.solusi}</div>
+    </div>`;
+  });
+  document.getElementById('utamaSection').innerHTML = utamaHTML;
+
+  if(alt.length>0){
+    let altHTML = `<hr class="divider"><div class="section-title"><span class="dot" style="background:var(--color-text-secondary)"></span>Diagnosa Alternatif (berdasarkan ranking)</div><div class="alt-grid">`;
+    alt.forEach((r,i)=>{
+      const gMap = buildGMap(r);
+      altHTML += `
+      <div class="alt-card">
+        <div class="alt-header">
+          <span class="alt-name">${r.kategori}<span class="rank-badge">#${i+2}</span></span>
+          <span class="alt-pct">${r.pct}%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill ${getColor(r.pct)}" style="width:${r.pct}%"></div></div>
+        <div class="explanation-block">
+          <div class="explanation-title">Gejala yang cocok</div>
+          <div class="tag-row">${gMap}</div>
+        </div>
+        <div class="solusi-block" style="font-size:12px">${r.solusi}</div>
+      </div>`;
+    });
+    altHTML += '</div>';
+    document.getElementById('altSection').innerHTML = altHTML;
+  } else {
+    document.getElementById('altSection').innerHTML='';
+  }
+
+  rs.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function buildGMap(r){
+  return r.gejala.map(gid=>{
+    const g = gejala.find(x=>x.id===gid);
+    const match = r.matched.includes(gid);
+    return `<span class="tag ${match?'tag-match':'tag-miss'}" title="${g.text}">${gid}${match?' ✓':''}</span>`;
+  }).join('');
+}
+</script>
