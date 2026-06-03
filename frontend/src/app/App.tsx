@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Brain, Send, Bot, User, Loader2, AlertTriangle, Zap } from "lucide-react";
+import { Brain, Send, Bot, User, Loader2, AlertTriangle, Zap, Sun, Moon, Menu } from "lucide-react";
 
 type Message = {
   id: string;
@@ -17,7 +17,24 @@ export default function App() {
   ]);
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Initialize Dark Mode based on system preference
+  useEffect(() => {
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      setIsDarkMode(true);
+    }
+  }, []);
+
+  // Toggle dark class on HTML element
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -33,7 +50,6 @@ export default function App() {
     const userText = inputText.trim();
     setInputText("");
 
-    // Menambahkan pesan pengguna ke UI
     setMessages(prev => [...prev, {
       id: Date.now().toString(),
       role: 'user',
@@ -63,7 +79,7 @@ export default function App() {
       if (data.showWarning) {
         systemResponse = (
           <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2 text-orange-600 font-medium">
+            <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 font-medium">
               <AlertTriangle className="w-5 h-5" />
               Maaf, informasi kurang jelas.
             </div>
@@ -71,35 +87,34 @@ export default function App() {
           </div>
         );
       } else if (data.results && data.results.length > 0) {
-        const result = data.results[0]; // Mengambil ranking diagnosa tertinggi
+        const result = data.results[0];
         systemResponse = (
           <div className="flex flex-col gap-4">
             <p>Berdasarkan analisa NLP pada penjelasan Anda, berikut adalah kemungkinan kerusakannya:</p>
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-indigo-100">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-indigo-100 dark:border-indigo-900/30">
                <div className="flex items-center justify-between mb-3">
-                 <h4 className="font-bold text-indigo-900 text-lg">{result.kategori}</h4>
-                 <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-md text-sm font-bold">{result.pct}% Cocok</span>
+                 <h4 className="font-bold text-indigo-900 dark:text-indigo-300 text-lg">{result.kategori}</h4>
+                 <span className="bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 px-2 py-1 rounded-md text-sm font-bold">{result.pct}% Cocok</span>
                </div>
                <div className="mb-3">
-                 <h5 className="text-xs font-bold text-gray-500 uppercase mb-1">Gejala (Keywords) Terdeteksi:</h5>
+                 <h5 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Gejala (Keywords) Terdeteksi:</h5>
                  <div className="flex flex-wrap gap-1">
                    {result.matched.map((g: string) => (
-                     <span key={g} className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">{g}</span>
+                     <span key={g} className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded text-xs">{g}</span>
                    ))}
                  </div>
                </div>
-               <div className="border-t border-indigo-50 pt-3">
-                  <h5 className="text-sm font-bold text-gray-700 mb-1 flex items-center gap-1">
-                    <Zap className="w-4 h-4 text-indigo-500"/> Solusi Perbaikan:
+               <div className="border-t border-indigo-50 dark:border-gray-700 pt-3">
+                  <h5 className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-1 flex items-center gap-1">
+                    <Zap className="w-4 h-4 text-indigo-500 dark:text-indigo-400"/> Solusi Perbaikan:
                   </h5>
-                  <p className="text-sm text-gray-600 leading-relaxed">{result.solusi}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{result.solusi}</p>
                </div>
             </div>
           </div>
         );
       }
 
-      // Menambahkan balasan sistem ke UI
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'system',
@@ -119,7 +134,6 @@ export default function App() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Submit pesan dengan tombol Enter (Shift+Enter untuk baris baru)
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -127,77 +141,95 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex justify-center p-0 sm:p-6 lg:p-8">
-      <div className="w-full max-w-4xl bg-white sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-gray-100 h-[100dvh] sm:h-[90vh]">
-        
-        {/* Chat Header */}
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 sm:p-6 flex items-center gap-4 text-white shadow-md z-10">
-          <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-            <Brain className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold">Website Diagnostic AI</h1>
-            <p className="text-indigo-100 text-sm">Powered by NLP & Expert System</p>
+    <div className="h-screen w-full flex flex-col bg-white dark:bg-gray-900 transition-colors duration-200 overflow-hidden text-gray-800 dark:text-gray-100 font-sans">
+      
+      {/* Minimalist Header */}
+      <header className="flex-shrink-0 h-14 border-b border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md flex items-center justify-between px-4 sm:px-6 z-10">
+        <div className="flex items-center gap-3">
+          <Menu className="w-5 h-5 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 cursor-pointer transition-colors sm:hidden" />
+          <div className="flex items-center gap-2">
+            <Brain className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            <h1 className="text-base sm:text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">Diagnosa AI</h1>
           </div>
         </div>
+        
+        <button 
+          onClick={() => setIsDarkMode(!isDarkMode)}
+          className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+          title="Toggle Theme"
+        >
+          {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        </button>
+      </header>
 
-        {/* Chat Messages Area */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gradient-to-b from-gray-50 to-white scroll-smooth">
-          <div className="flex flex-col gap-6">
-            {messages.map((msg) => (
-              <div 
-                key={msg.id} 
-                className={`flex gap-3 sm:gap-4 max-w-[85%] sm:max-w-[75%] ${msg.role === 'user' ? 'ml-auto flex-row-reverse' : ''}`}
-              >
-                {/* Avatar */}
-                <div className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center ${msg.role === 'user' ? 'bg-indigo-100' : 'bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md'}`}>
-                  {msg.role === 'user' ? <User className="w-5 h-5 text-indigo-600" /> : <Bot className="w-5 h-5 text-white" />}
-                </div>
-
-                {/* Message Bubble */}
-                <div className={`p-4 rounded-2xl text-sm sm:text-base ${
-                  msg.role === 'user' 
-                    ? 'bg-indigo-600 text-white rounded-tr-sm shadow-md' 
-                    : 'bg-white border border-gray-100 text-gray-800 rounded-tl-sm shadow-sm'
-                }`}>
-                  {msg.content}
+      {/* Main Chat Area */}
+      <main className="flex-1 overflow-y-auto w-full scroll-smooth flex flex-col items-center">
+        <div className="w-full max-w-3xl flex flex-col gap-6 p-4 sm:p-6 pb-6">
+          {messages.map((msg) => (
+            <div 
+              key={msg.id} 
+              className={`flex gap-4 sm:gap-5 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
+            >
+              <div className={`flex justify-center ${msg.role === 'user' ? 'items-center w-10' : ''}`}>
+                {/* Avatar Minimalist */}
+                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${msg.role === 'user' ? 'bg-indigo-100 dark:bg-indigo-900/50' : 'bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700'}`}>
+                  {msg.role === 'user' ? <User className="w-4 h-4 text-indigo-600 dark:text-indigo-400" /> : <Brain className="w-4 h-4 text-gray-600 dark:text-gray-300" />}
                 </div>
               </div>
-            ))}
 
-            {/* Loading Indicator */}
-            {isLoading && (
-               <div className="flex gap-3 sm:gap-4 max-w-[85%] sm:max-w-[75%]">
-                 <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md flex items-center justify-center">
-                   <Bot className="w-5 h-5 text-white" />
-                 </div>
-                 <div className="p-4 rounded-2xl bg-white border border-gray-100 text-gray-800 rounded-tl-sm shadow-sm flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
-                    <span className="text-sm text-gray-500">Menganalisa teks menggunakan NLP...</span>
-                 </div>
-               </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
+              {/* Message Content */}
+              <div className={`max-w-[85%] sm:max-w-prose pt-1 ${
+                msg.role === 'user' 
+                  ? 'text-gray-800 dark:text-gray-100' 
+                  : 'text-gray-800 dark:text-gray-200'
+              }`}>
+                {msg.role === 'user' ? (
+                   <div className="bg-gray-100 dark:bg-gray-800 rounded-2xl px-5 py-3 inline-block ml-auto max-w-full text-[15px] leading-relaxed shadow-sm text-left">
+                     {msg.content}
+                   </div>
+                ) : (
+                   <div className="text-[15px] leading-relaxed pr-4">
+                     {msg.content}
+                   </div>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {/* Loading Indicator */}
+          {isLoading && (
+            <div className="flex gap-4 sm:gap-6 w-full max-w-3xl">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center">
+                <Brain className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+              </div>
+              <div className="flex-1 pt-2 flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-sm font-medium">Menganalisa...</span>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} className="h-4" />
         </div>
+      </main>
 
-        {/* Chat Input Area */}
-        <div className="bg-white border-t border-gray-100 p-4 sm:p-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
-          <div className="relative flex items-end gap-2 max-w-4xl mx-auto">
+      {/* Input Area */}
+      <div className="w-full bg-white dark:bg-gray-900 pt-2 pb-6 px-4 z-20 flex justify-center">
+        <div className="w-full max-w-3xl relative">
+          <div className="relative shadow-[0_0_15px_rgba(0,0,0,0.05)] dark:shadow-[0_0_15px_rgba(0,0,0,0.4)] rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-end">
             <textarea
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ketik masalah website Anda di sini..."
-              className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm sm:text-base rounded-2xl p-4 pr-14 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all resize-none max-h-32 min-h-[60px]"
+              placeholder="Jelaskan masalah website Anda..."
+              className="w-full bg-transparent text-gray-800 dark:text-gray-100 text-base p-4 pr-14 focus:outline-none resize-none max-h-32 min-h-[56px] rounded-2xl leading-relaxed"
               rows={1}
             />
             <button
               onClick={handleSendMessage}
               disabled={!inputText.trim() || isLoading}
-              className="absolute right-2 bottom-2 p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-sm"
+              className="absolute right-2 bottom-2 p-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 transition-colors disabled:opacity-30 disabled:hover:bg-indigo-600 flex items-center justify-center"
             >
-              <Send className="w-5 h-5 ml-1" />
+              <Send className="w-5 h-5" />
             </button>
           </div>
           <p className="text-center text-xs text-gray-400 mt-3">
@@ -205,6 +237,7 @@ export default function App() {
           </p>
         </div>
       </div>
+
     </div>
   );
 }

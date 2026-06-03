@@ -121,7 +121,7 @@ def run_diagnose():
     
     max_pct = scored[0]['pct'] if scored else 0
     
-    if max_pct < 30:
+    if max_pct == 0:
         return jsonify({"showWarning": True, "results": None})
     
     results = [r for r in scored if len(r['matched']) > 0]
@@ -207,8 +207,8 @@ def run_nlp_diagnose():
     # =========================================================================
     max_pct = scored[0]['pct'] if scored else 0
     
-    # Jika kecocokan paling tinggi kurang dari 30%, asumsikan input tidak cukup spesifik
-    if max_pct < 30:
+    # Jika tidak ada rule yang cocok sama sekali
+    if max_pct == 0:
         return jsonify({"showWarning": True, "results": None})
     
     # Filter hanya hasil yang memiliki kecocokan > 0
