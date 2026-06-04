@@ -542,20 +542,6 @@ def _is_negated(term: str, text_normalized: str) -> bool:
     return False
 
 
-def _append_evidence(evidence, method, candidate, normalized_candidate, weight, matched=True, fuzzy_score=None, threshold=None, status='accepted'):
-    """Simpan bukti pencocokan agar proses deteksi bisa ditampilkan di frontend."""
-    evidence.append({
-        'method': method,
-        'candidate': candidate,
-        'normalizedCandidate': normalized_candidate,
-        'matched': matched,
-        'fuzzyScore': fuzzy_score,
-        'threshold': threshold,
-        'weight': weight,
-        'status': status,
-    })
-
-
 def detect_symptoms(preprocess):
     text_normalized = preprocess['normalized']
     tokens = preprocess['tokens']
@@ -567,9 +553,6 @@ def detect_symptoms(preprocess):
     for symptom_id, pattern in SYMPTOM_PATTERNS.items():
         matched_by = []
         ignored_by_negation = []
-        evidence = []
-        top_fuzzy_phrases = []
-        top_fuzzy_keywords = []
         score = 0.0
 
         # 1. Exact phrase matching, bukti paling kuat.
@@ -578,52 +561,19 @@ def detect_symptoms(preprocess):
             if normalized_phrase and normalized_phrase in text_normalized:
                 if _is_negated(normalized_phrase, text_normalized):
                     ignored_by_negation.append(f"negasi frasa: {phrase}")
-                    _append_evidence(
-                        evidence,
-                        method='Exact Phrase',
-                        candidate=phrase,
-                        normalized_candidate=normalized_phrase,
-                        weight=0,
-                        status='ignored_by_negation'
-                    )
                     continue
                 matched_by.append(f"frasa kuat: {phrase}")
                 score += WEIGHTS['phrase']
-                _append_evidence(
-                    evidence,
-                    method='Exact Phrase',
-                    candidate=phrase,
-                    normalized_candidate=normalized_phrase,
-                    weight=WEIGHTS['phrase'],
-                    status='accepted'
-                )
 
         # 2. Group matching, beberapa kata harus muncul bersama.
         for group in pattern.get('groups', []):
             if _contains_group(group, token_set, stem_set):
                 group_text = ' '.join(group)
-                normalized_group = normalize_text(group_text)
                 if _is_negated(group_text, text_normalized):
                     ignored_by_negation.append('negasi kombinasi kata: ' + ' + '.join(group))
-                    _append_evidence(
-                        evidence,
-                        method='Group Words',
-                        candidate=' + '.join(group),
-                        normalized_candidate=normalized_group,
-                        weight=0,
-                        status='ignored_by_negation'
-                    )
                     continue
                 matched_by.append('kombinasi kata: ' + ' + '.join(group))
                 score += WEIGHTS['group']
-                _append_evidence(
-                    evidence,
-                    method='Group Words',
-                    candidate=' + '.join(group),
-                    normalized_candidate=normalized_group,
-                    weight=WEIGHTS['group'],
-                    status='accepted'
-                )
 
         # 3. Keyword kuat/unik. Hindari keyword umum.
         for keyword in pattern.get('keywords', []):
@@ -632,68 +582,23 @@ def detect_symptoms(preprocess):
             if normalized_kw in token_set or stemmed_kw in stem_set:
                 if _is_negated(normalized_kw, text_normalized):
                     ignored_by_negation.append(f"negasi keyword: {keyword}")
-                    _append_evidence(
-                        evidence,
-                        method='Strong Keyword',
-                        candidate=keyword,
-                        normalized_candidate=normalized_kw,
-                        weight=0,
-                        status='ignored_by_negation'
-                    )
                     continue
                 matched_by.append(f"keyword kuat: {keyword}")
                 score += WEIGHTS['keyword']
-                _append_evidence(
-                    evidence,
-                    method='Strong Keyword',
-                    candidate=keyword,
-                    normalized_candidate=normalized_kw,
-                    weight=WEIGHTS['keyword'],
-                    status='accepted'
-                )
 
-        # 4. Fuzzy phrase matching dengan thefuzz, fallback untuk typo.
-        #    Selain accepted evidence, simpan top fuzzy candidates agar prosesnya terlihat.
+        # 4. Fuzzy phrase matching dengan thefuzz, hanya fallback untuk typo.
+        #    Frasa pendek tetap dihindari supaya tidak terlalu sensitif.
         for phrase in pattern.get('phrases', []):
             normalized_phrase = normalize_text(phrase)
             if len(normalized_phrase) < 8 or normalized_phrase in text_normalized:
                 continue
             fuzzy_score = similarity_ratio(normalized_phrase, text_normalized, mode='partial')
-            if fuzzy_score >= 70:
-                top_fuzzy_phrases.append({
-                    'candidate': phrase,
-                    'normalizedCandidate': normalized_phrase,
-                    'fuzzyScore': fuzzy_score,
-                    'threshold': FUZZY_PHRASE_THRESHOLD,
-                    'accepted': fuzzy_score >= FUZZY_PHRASE_THRESHOLD,
-                })
-
             if fuzzy_score >= FUZZY_PHRASE_THRESHOLD:
                 if _is_negated(normalized_phrase, text_normalized):
                     ignored_by_negation.append(f"negasi fuzzy frasa: {phrase} ({fuzzy_score})")
-                    _append_evidence(
-                        evidence,
-                        method='Fuzzy Phrase',
-                        candidate=phrase,
-                        normalized_candidate=normalized_phrase,
-                        weight=0,
-                        fuzzy_score=fuzzy_score,
-                        threshold=FUZZY_PHRASE_THRESHOLD,
-                        status='ignored_by_negation'
-                    )
                     continue
                 matched_by.append(f"fuzzy frasa: {phrase} ({fuzzy_score})")
                 score += WEIGHTS['fuzzy_phrase']
-                _append_evidence(
-                    evidence,
-                    method='Fuzzy Phrase',
-                    candidate=phrase,
-                    normalized_candidate=normalized_phrase,
-                    weight=WEIGHTS['fuzzy_phrase'],
-                    fuzzy_score=fuzzy_score,
-                    threshold=FUZZY_PHRASE_THRESHOLD,
-                    status='accepted'
-                )
 
         # 5. Fuzzy keyword matching, hanya untuk kata cukup panjang dan bukan angka pendek.
         for keyword in pattern.get('keywords', []):
@@ -709,33 +614,9 @@ def detect_symptoms(preprocess):
                 if ratio > best:
                     best = ratio
                     best_token = token
-
-            if best_token and best >= 70:
-                top_fuzzy_keywords.append({
-                    'candidate': keyword,
-                    'matchedToken': best_token,
-                    'fuzzyScore': best,
-                    'threshold': FUZZY_KEYWORD_THRESHOLD,
-                    'accepted': best >= FUZZY_KEYWORD_THRESHOLD,
-                })
-
             if best >= FUZZY_KEYWORD_THRESHOLD:
                 matched_by.append(f"fuzzy keyword: {keyword} ≈ {best_token} ({best})")
                 score += WEIGHTS['fuzzy_keyword']
-                _append_evidence(
-                    evidence,
-                    method='Fuzzy Keyword',
-                    candidate=keyword,
-                    normalized_candidate=normalized_kw,
-                    weight=WEIGHTS['fuzzy_keyword'],
-                    fuzzy_score=best,
-                    threshold=FUZZY_KEYWORD_THRESHOLD,
-                    status=f"accepted; matched token: {best_token}"
-                )
-
-        # Urutkan ringkasan fuzzy agar kandidat terbaik tampil dulu.
-        top_fuzzy_phrases = sorted(top_fuzzy_phrases, key=lambda x: x['fuzzyScore'], reverse=True)[:5]
-        top_fuzzy_keywords = sorted(top_fuzzy_keywords, key=lambda x: x['fuzzyScore'], reverse=True)[:5]
 
         if matched_by and score >= MIN_SYMPTOM_SCORE:
             confidence_percent = min(100, round(score * 45))
@@ -754,23 +635,7 @@ def detect_symptoms(preprocess):
                 'confidenceScore': round(score, 2),
                 'confidencePercent': confidence_percent,
                 'confidenceLabel': confidence_label,
-                'processDetail': {
-                    'rawScoreBeforePercent': round(score, 2),
-                    'minimumSymptomScore': MIN_SYMPTOM_SCORE,
-                    'weights': WEIGHTS,
-                    'thresholds': {
-                        'fuzzyPhrase': FUZZY_PHRASE_THRESHOLD,
-                        'fuzzyKeyword': FUZZY_KEYWORD_THRESHOLD,
-                    },
-                    'acceptedEvidence': evidence,
-                    'topFuzzyPhraseCandidates': top_fuzzy_phrases,
-                    'topFuzzyKeywordCandidates': top_fuzzy_keywords,
-                }
             }
-        elif evidence or ignored_by_negation or top_fuzzy_phrases or top_fuzzy_keywords:
-            # Tidak masuk detected, tapi jejaknya tetap bisa dipakai jika suatu saat ingin debug semua gejala.
-            # Saat ini tidak dikirim agar response tidak terlalu besar.
-            pass
 
     return detected
 
@@ -830,30 +695,6 @@ def diagnose_from_symptoms(selected_symptoms, detected_map=None):
     results.sort(key=lambda x: (len(x['matched']), x['skor']), reverse=True)
     return results
 
-
-def build_process_summary():
-    return {
-        'pipeline': [
-            'Normalisasi slang dan tanda baca',
-            'Tokenisasi dan stemming Sastrawi',
-            'Exact phrase matching',
-            'Group words matching',
-            'Strong keyword matching',
-            'Fuzzy matching dengan thefuzz sebagai fallback',
-            'Negation handling',
-            'Confidence scoring per gejala',
-            'Rule-based diagnosis berdasarkan gejala terdeteksi'
-        ],
-        'weights': WEIGHTS,
-        'thresholds': {
-            'fuzzyPhrase': FUZZY_PHRASE_THRESHOLD,
-            'fuzzyKeyword': FUZZY_KEYWORD_THRESHOLD,
-            'minimumSymptomScore': MIN_SYMPTOM_SCORE,
-        },
-        'thefuzzAvailable': THEFUZZ_AVAILABLE,
-        'note': 'Fuzzy dipakai sebagai fallback untuk typo. Exact phrase dan group words tetap menjadi bukti utama.'
-    }
-
 # ===============================
 # ROUTES
 # ===============================
@@ -881,8 +722,7 @@ def run_diagnose():
         'detectedSymptoms': [{'id': g, 'text': GEJALA_MAP.get(g, g), 'matchedBy': ['input manual']} for g in selected],
         'results': results,
         'mainResult': results[0],
-        'alternativeResults': results[1:],
-        'processSummary': build_process_summary()
+        'alternativeResults': results[1:]
     })
 
 
@@ -911,8 +751,7 @@ def run_nlp_diagnose():
             'showWarning': True,
             'results': None,
             'preprocessing': preprocess,
-            'detectedSymptoms': [],
-            'processSummary': build_process_summary()
+            'detectedSymptoms': []
         })
 
     results = diagnose_from_symptoms(detected_symptoms, detected_map)
@@ -921,8 +760,7 @@ def run_nlp_diagnose():
             'showWarning': True,
             'results': None,
             'preprocessing': preprocess,
-            'detectedSymptoms': list(detected_map.values()),
-            'processSummary': build_process_summary()
+            'detectedSymptoms': list(detected_map.values())
         })
 
     return jsonify({
@@ -931,8 +769,7 @@ def run_nlp_diagnose():
         'detectedSymptoms': [detected_map[g] for g in detected_symptoms],
         'results': results,
         'mainResult': results[0],
-        'alternativeResults': results[1:],
-        'processSummary': build_process_summary()
+        'alternativeResults': results[1:]
     })
 
 
