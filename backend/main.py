@@ -296,10 +296,10 @@ SYMPTOM_PATTERNS = {
             'lama sekali dibuka', 'lama banget dibuka', 'susah loading',
             'halaman muter terus', 'browser loading terus', 'tidak selesai loading',
             'stuck loading', 'load lama banget', 'website berat dibuka',
-            'respon website lama', 'aksesnya lambat'
+            'respon website lama', 'aksesnya lambat', 'website lag', 'website ngelag', 'ngelag banget'
         ],
-        'groups': [['connection', 'timeout'], ['request', 'timeout'], ['connect', 'timeout'], ['website', 'lambat'], ['loading', 'terus'], ['loading', 'lama']],
-        'keywords': ['timeout', 'lambat', 'loading', 'stuck']
+        'groups': [['connection', 'timeout'], ['request', 'timeout'], ['connect', 'timeout'], ['website', 'lambat'], ['loading', 'terus'], ['loading', 'lama'], ['website', 'lag']],
+        'keywords': ['timeout', 'lambat', 'loading', 'stuck', 'lag']
     },
     'G6': {
         'phrases': [
